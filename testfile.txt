@@ -1,1 +1,1 @@
-This is just a file for making PRs for testing and for making sure the script works.
+This is just a file for making PRs for testing and for making sure the squashMergeTest.bash script works.
