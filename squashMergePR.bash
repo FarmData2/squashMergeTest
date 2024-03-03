@@ -202,8 +202,9 @@ fi
 # Fetch PR title and body if not provided via CLI flags
 if [ -z "$PR_TITLE" ] && [ -z "$PR_BODY" ] && [ -n "$PR_NUMBER" ]; then
     echo "Fetching PR #$PR_NUMBER details..."
-    PR_TITLE=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json title --jq '.title')
-    PR_BODY=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json body --jq '.body')
+    PR_DETAILS=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json title,body)
+    PR_TITLE=$(echo "$PR_DETAILS" | jq -r '.title')
+    PR_BODY=$(echo "$PR_DETAILS" | jq -r '.body')
 fi
 
 # Extract type, scope, and description from PR if not provided via CLI flags
