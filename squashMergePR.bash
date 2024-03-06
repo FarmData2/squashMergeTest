@@ -115,7 +115,7 @@ convertToConventionalCommit() {
     commit_message="${commit_message}: ${description}"
 
     if [[ "$breaking_change" == "yes" && -n "$breaking_change_description" ]]; then
-        commit_message="${commit_message}\n\nBREAKING CHANGE: ${breaking_change_description}"
+        commit_message="${commit_message}  BREAKING CHANGE: ${breaking_change_description}"
     elif [[ "$breaking_change" == "yes" ]]; then
         commit_message="${commit_message}\n\n${body}"
     else
