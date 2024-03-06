@@ -2,7 +2,7 @@
 
 # Define valid types and scopes
 VALID_TYPES=("build" "chore" "ci" "docs" "feat" "fix" "perf" "refactor" "style" "test")
-VALID_SCOPES=("dev" "comp" "lib" "fd2" "examples" "school" "none") # Added 'none' for no scope 
+VALID_SCOPES=("dev" "comp" "lib" "fd2" "examples" "school" "none") # Added 'none' for no scope
 
 # Default values for flags
 TYPE=""
@@ -10,7 +10,7 @@ SCOPE=""
 PR_NUMBER=""
 DESCRIPTION=""
 PR_BODY=""
-BREAKING_CHANGE="no" # Safe to assume no breaking changes by default.
+BREAKING_CHANGE=""
 BREAKING_CHANGE_DESCRIPTION=""
 REPO_URL=""
 
@@ -58,11 +58,11 @@ done
 # Helper function to check if an element is in an array
 elementInArray() {
     local element
-    shopt -s nocasematch 
+    shopt -s nocasematch
     for element in "${@:2}"; do
-        [[ "$element" == "$1" ]] && { shopt -u nocasematch; return 0; } 
+        [[ "$element" == "$1" ]] && { shopt -u nocasematch; return 0; }
     done
-    shopt -u nocasematch 
+    shopt -u nocasematch
     return 1
 }
 
@@ -76,27 +76,27 @@ printArray() {
 
 # Helper function to prompt for a value with a default, displaying valid options and requiring valid input
 promptForValue() {
-    local prompt=$1
-    local default=$2
-    local -n validOptions=$3 # Using nameref for indirect reference to the array
+    local prompt="$1"
+    local defaultValue="$2"
+    local validOptions=("${!3}")
+    local -n resultVar=$4
     local value
-    while true; do
-        echo "$prompt"
-        if [[ -n ${validOptions} ]]; then
-            echo "Valid options are:"
-            for item in "${validOptions[@]}"; do
-                echo " - $item"
-            done
-        fi
-        read -p "Your choice [$default]: " value
-        value="${value:-$default}"
-        if [[ " ${validOptions[*]} " =~ " ${value} " || "$value" == "$default" ]]; then
-            echo "$value"
-            return 0 
-        else
-            echo "Invalid input: '$value'. Please enter a valid value."
-        fi
-    done
+
+    echo "$prompt"
+    if [[ "${#validOptions[@]}" -ne 0 ]]; then
+        echo "Valid options are:"
+        for item in "${validOptions[@]}"; do
+            echo " - $item"
+        done
+    fi
+    read -p "Your choice [$defaultValue]: " value
+    value="${value:-$defaultValue}"
+
+    if [[ " ${validOptions[*]} " =~ " ${value} " || "$value" == "$defaultValue" ]]; then
+        resultVar=$value
+    else
+        echo "Invalid input: '$value'. Please enter a valid value."
+    fi
 }
 # Function to convert PR title to conventional commit format
 convertToConventionalCommit() {
@@ -105,15 +105,15 @@ convertToConventionalCommit() {
     local description=$3
     local body=$4
     local breaking_change=$5
-    local breaking_change_description=$6 
-    local commit_message="${type}" 
-    
+    local breaking_change_description=$6
+    local commit_message="${type}"
+
     if [[ "$scope" != "none" ]]; then
         commit_message="${commit_message}(${scope})"
-    fi 
-    
+    fi
+
     commit_message="${commit_message}: ${description}"
-    
+
     if [[ "$breaking_change" == "yes" && -n "$breaking_change_description" ]]; then
         commit_message="${commit_message}\n\nBREAKING CHANGE: ${breaking_change_description}"
     elif [[ "$breaking_change" == "yes" ]]; then
@@ -121,7 +121,7 @@ convertToConventionalCommit() {
     else
         commit_message="${commit_message}\n\n${body}"
     fi
-    
+
     echo "$commit_message"
 }
 
@@ -137,16 +137,16 @@ checkGhCliAuth() {
 }
 # Function to perform a squash merge
 squashMergePR() {
-    local pr_number=$1
+    local pr_number=5
     local commit_message=$2
-    local repo=$3 # Use passed repository information
+    local repo=$3
+    local breaking_change_description=$4
 
     echo "Attempting to merge PR #$pr_number into $repo..."
-    gh pr merge "$pr_number" --repo "$repo" --squash --commit-title "$commit_message" && \
+    gh pr merge "$pr_number" --repo "$repo" -s -t "$commit_message" -b "$DESCRIPTION $breaking_change_description"
     echo "Successfully merged PR #$pr_number into $repo." || \
     { echo "Failed to merge PR #$pr_number into $repo."; return 1; }
 }
-
 # Function to check for external dependencies
 checkDependencies() {
     if ! command -v gh &> /dev/null; then
@@ -161,13 +161,15 @@ checkDependencies
 # Main Entrypoint (Beginning with gh auth check)
 checkGhCliAuth
 
-# Extract repository info from URL or current git context 
+# Extract repository info from URL or current git context
 if [[ -n "$REPO_URL" ]]; then
-    if [[ "$REPO_URL" =~ git@github.com:(.+)/(.+)\.git ]]; then
+    # Remove .git suffix if present
+    REPO_URL="${REPO_URL%.git}"
+    if [[ "$REPO_URL" =~ git@github.com:(.+)/(.+) ]]; then
         # SSH format URL
         REPO="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
-    elif [[ "$REPO_URL" =~ https://github.com/(.+)/(.+)(\.git)? ]]; then
-        # HTTPS format URL, with optional .git suffix
+    elif [[ "$REPO_URL" =~ https://github.com/(.+)/(.+) ]]; then
+        # HTTPS format URL
         REPO="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
     else
         echo "Error: Unable to parse GitHub repository URL."
@@ -176,9 +178,11 @@ if [[ -n "$REPO_URL" ]]; then
 elif git rev-parse --git-dir > /dev/null 2>&1; then
     # Attempt to extract from current git repository if in a git directory
     REPO_URL=$(git remote get-url origin)
-    if [[ "$REPO_URL" =~ git@github.com:(.+)/(.+)\.git ]]; then
+    # Remove .git suffix if present
+    REPO_URL="${REPO_URL%.git}"
+    if [[ "$REPO_URL" =~ git@github.com:(.+)/(.+) ]]; then
         REPO="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
-    elif [[ "$REPO_URL" =~ https://github.com/(.+)/(.+)(\.git)? ]]; then
+    elif [[ "$REPO_URL" =~ https://github.com/(.+)/(.+) ]]; then
         REPO="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
     else
         echo "Error: Unable to parse origin URL of the current git repository."
@@ -187,16 +191,6 @@ elif git rev-parse --git-dir > /dev/null 2>&1; then
 else
     echo "Error: Repository URL is required if not in a git repository folder."
     exit 1
-fi
-
-# Interactive prompt for PR_NUMBER if not provided via CLI
-if [ -z "$PR_NUMBER" ]; then
-    echo "Enter the Pull Request (PR) number you wish to merge:"
-    read -r PR_NUMBER
-    if ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
-        echo "Error: PR number must be a positive integer."
-        exit 1
-    fi
 fi
 
 # Fetch PR title and body if not provided via CLI flags
@@ -217,21 +211,29 @@ fi
 
 # Interactive prompts for TYPE, SCOPE, DESCRIPTION if still needed
 if [ -z "$TYPE" ]; then
-    promptForValue "Enter commit type" "feat" VALID_TYPES
+    promptForValue "Enter commit type" "feat" VALID_TYPES[@] TYPE
 fi
 
 if [ -z "$SCOPE" ]; then
-    promptForValue "Enter commit scope" "none" VALID_SCOPES
+    promptForValue "Enter commit scope" "none" VALID_SCOPES[@] SCOPE
 fi
 
 if [ -z "$DESCRIPTION" ]; then
-    echo "Enter commit description:"
+    echo -n "Enter commit description: "
     read DESCRIPTION
+    if [ -z "$DESCRIPTION" ]; then
+        echo "Error: Commit description cannot be empty."
+        exit 1
+    fi
 fi
-
 # Handle BREAKING_CHANGE flag interactively if not set
 if [ -z "$BREAKING_CHANGE" ]; then
-    promptForValue "Is this a breaking change (yes/no)" "no"
+    echo "Is this a breaking change? (yes/no)"
+    read -r BREAKING_CHANGE
+    if [[ "$BREAKING_CHANGE" != "yes" && "$BREAKING_CHANGE" != "no" ]]; then
+        echo "Invalid input. Please enter 'yes' or 'no'."
+        exit 1
+    fi
 fi
 
 # Prompt for breaking change description if necessary
@@ -243,6 +245,11 @@ if [[ "$BREAKING_CHANGE" == "yes" && -z "$BREAKING_CHANGE_DESCRIPTION" ]]; then
         echo "You indicated this is a breaking change. Please provide a specific description of the breaking change."
         read -p "Enter breaking change description: " BREAKING_CHANGE_DESCRIPTION
     fi
+fi
+
+# Add breaking change to PR body
+if [[ "$BREAKING_CHANGE" == "yes" && -n "$BREAKING_CHANGE_DESCRIPTION" ]]; then
+    PR_BODY="${PR_BODY}\n\nBREAKING CHANGE: ${BREAKING_CHANGE_DESCRIPTION}"
 fi
 
 # Generate the conventional commit message
@@ -262,14 +269,14 @@ case $choice in
         CONV_COMMIT=$(cat "$TMPFILE")
         rm "$TMPFILE"
         ;;
-    [Cc]* ) 
+    [Cc]* )
         echo "Operation cancelled."
         exit 0
         ;;
-    * ) 
+    * )
         echo "Accepting commit and beginning squash merge."
         ;;
 esac
 
-# Perform the squash merge 
+# Perform the squash merge
 squashMergePR "$PR_NUMBER" "$CONV_COMMIT" "$REPO"
