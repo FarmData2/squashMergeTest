@@ -137,7 +137,7 @@ checkGhCliAuth() {
 }
 # Function to perform a squash merge
 squashMergePR() {
-    local pr_number=5
+    local pr_number=$PR_NUMBER
     local commit_message=$2
     local repo=$3
     local breaking_change_description=$4
