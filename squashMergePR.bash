@@ -80,23 +80,33 @@ promptForValue() {
     local defaultValue="$2"
     local validOptions=("${!3}")
     local -n resultVar=$4
-    local value
+    local value valid
 
     echo "$prompt"
     if [[ "${#validOptions[@]}" -ne 0 ]]; then
         echo "Valid options are:"
-        for item in "${validOptions[@]}"; do
-            echo " - $item"
-        done
+        printArray "${validOptions[@]}"
     fi
-    read -p "Your choice [$defaultValue]: " value
-    value="${value:-$defaultValue}"
 
-    if [[ " ${validOptions[*]} " =~ " ${value} " || "$value" == "$defaultValue" ]]; then
-        resultVar=$value
-    else
-        echo "Invalid input: '$value'. Please enter a valid value."
-    fi
+    while true; do
+        read -p "Your choice [$defaultValue]: " value
+        value="${value:-$defaultValue}"
+        valid=false
+
+        for item in "${validOptions[@]}"; do
+            if [[ "$value" == "$item" ]]; then
+                valid=true
+                break
+            fi
+        done
+
+        if [ "$valid" = true ]; then
+            resultVar=$value
+            break
+        else
+            echo "Invalid input: '$value'. Please enter a valid value."
+        fi
+    done
 }
 # Function to convert PR title to conventional commit format
 convertToConventionalCommit() {
@@ -168,36 +178,60 @@ checkDependencies() {
         exit 1
     fi
 }
-
-# Prepare and extract PR details
+# Retrieves PR details from Github, checks the state (if merged) and gets detailed (Title, Body, Description, Breaking Changes if found)
 prepPrDetails() {
-    # Prompt for PR number if not provided
-    if [ -z "$PR_NUMBER" ]; then
-        while true; do
+    local valid_pr_found=false
+
+    while [ "$valid_pr_found" == false ]; do
+        # Prompt for PR number if not provided
+        if [ -z "$PR_NUMBER" ]; then
             read -p "Enter the Pull Request (PR) number: " PR_NUMBER
-            if [ -z "$PR_NUMBER" ]; then
-                echo "Error: PR number cannot be empty."
-            elif ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
-                echo "Error: PR number must be numeric."
+        fi
+
+        if [ -z "$PR_NUMBER" ]; then
+            echo "Error: PR number cannot be empty."
+            PR_NUMBER=""
+        elif ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "Error: PR number must be numeric."
+            PR_NUMBER=""
+        else
+            # Fetch PR details including changed files and merge state status
+            echo "Fetching details for PR #$PR_NUMBER..."
+            PR_DETAILS=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json title,body,state,isDraft,author,changedFiles,mergeStateStatus)
+            PR_TITLE=$(echo "$PR_DETAILS" | jq -r '.title')
+            PR_BODY=$(echo "$PR_DETAILS" | jq -r '.body')
+            PR_STATE=$(echo "$PR_DETAILS" | jq -r '.state')
+            PR_IS_DRAFT=$(echo "$PR_DETAILS" | jq -r '.isDraft')
+            PR_AUTHOR=$(echo "$PR_DETAILS" | jq -r '.author.login')
+            PR_CHANGED_FILES=$(echo "$PR_DETAILS" | jq -r '.changedFiles')
+            PR_MERGE_STATE_STATUS=$(echo "$PR_DETAILS" | jq -r '.mergeStateStatus')
+
+            # Echo the current PR number, title, description, and additional details
+            echo ""
+            echo "Current PR: #$PR_NUMBER - $PR_TITLE"
+            echo "PR Description: $PR_BODY"
+            echo "Author: $PR_AUTHOR"
+            echo "Changed Files: $PR_CHANGED_FILES"
+            echo "Merge State Status: $PR_MERGE_STATE_STATUS"
+            echo ""
+
+            # Check if PR is closed, draft, or not ready based on merge state status
+            if [[ "$PR_STATE" == "closed" ]]; then
+                echo "This PR is closed."
+                PR_NUMBER=""
+            elif [[ "$PR_IS_DRAFT" == "true" ]]; then
+                echo "This PR is in draft state and is not ready to be merged. Please enter a different PR number."
+                PR_NUMBER=""
+            elif [[ "$PR_MERGE_STATE_STATUS" != "CLEAN" ]]; then
+                echo "This PR is not in a state that can be merged (Merge State Status: $PR_MERGE_STATE_STATUS). Please choose a different PR or resolve the issues."
+                PR_NUMBER=""
             else
-                break # Valid PR number entered
+                echo "This PR is open and ready for further actions."
+                echo "" # Adds clean newline
+                valid_pr_found=true
             fi
-        done
-    else
-        echo "Working with detected PR number: $PR_NUMBER."
-    fi
-
-    # Fetch PR details
-    if [ -n "$PR_NUMBER" ]; then
-        echo "Fetching details for PR #$PR_NUMBER..."
-        PR_DETAILS=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json title,body)
-        PR_TITLE=$(echo "$PR_DETAILS" | jq -r '.title')
-        PR_BODY=$(echo "$PR_DETAILS" | jq -r '.body')
-
-        # Echo the current PR number and title
-        echo "Current PR: #$PR_NUMBER - $PR_TITLE"
-        echo "PR Decription: $PR_BODY"
-    fi
+        fi
+    done
 
     # Direct extraction of the DESCRIPTION from PR_TITLE, if not already provided
     if [ -z "$DESCRIPTION" ]; then
@@ -216,7 +250,7 @@ prepPrDetails
 
 # Interactive prompts for TYPE, SCOPE, DESCRIPTION if still needed
 if [ -z "$TYPE" ]; then
-    promptForValue "Enter commit type" "feat" VALID_TYPES[@] TYPE
+    promptForValue "Please enter a valid commit type" "feat" VALID_TYPES[@] TYPE
 fi
 
 if [ -z "$SCOPE" ]; then
@@ -327,7 +361,5 @@ case $choice in
         ;;
 esac
 
-echo "Current PR number is "
-echo "$PR_NUMBER"
 # Perform the squash merge
 squashMergePR "$PR_NUMBER" "$CONV_COMMIT" "$REPO"
