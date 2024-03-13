@@ -1,1 +1,3 @@
-This is just a file for making PRs for testing and for making sure the script works as intended
+What's the difference between a bug and a feature in Javascript?
+
+A bug has documentation.
