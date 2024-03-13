@@ -35,7 +35,7 @@ displayHelp() {
     echo "Example:"
     echo "  $0 --type feat --scope lib --description \"Add new feature\" --pr-number 123 --repo https://github.com/user/repo"
     echo ""
-    echo "This script uses both GitHub CLI (gh) and a JSON CLI processor (jq) and expects both to be installed and GitHub CLI to be authenticated with GitHub."
+    echo "This script uses the GitHub CLI (gh) and expects it to be installed and authenticated."
 }
 
 # Parse command line options
@@ -276,12 +276,24 @@ fi
 
 # Prompt for breaking change description if necessary
 if [[ "$BREAKING_CHANGE" == "yes" && -z "$BREAKING_CHANGE_DESCRIPTION" ]]; then
-    if [[ "$PR_BODY" =~ "BREAKING CHANGE:" ]]; then
-        BREAKING_CHANGE_DESCRIPTION=$(echo "$PR_BODY" | sed -n '/BREAKING CHANGE:/,$p')
+    if [[ "$PR_BODY" =~ "BREAKING CHANGE:" || "$PR_BODY" =~ "BREAKING CHANGES:" ]]; then
+        BREAKING_CHANGE_DESCRIPTION=$(echo "$PR_BODY" | sed -n '/BREAKING CHANGE:/,$p' | sed 's/BREAKING CHANGE[S]*: //')
         echo "Breaking changes found and appended to commit."
     else
         echo "You indicated this is a breaking change. Please provide a specific description of the breaking change."
         read -p "Enter breaking change description: " BREAKING_CHANGE_DESCRIPTION
+    fi
+fi
+
+# Check for discrepancy (If there isn't a breaking change but one is provided in the footer of the PR)
+if [[ "$BREAKING_CHANGE" == "no" ]]; then
+    if [[ "$PR_BODY" =~ "BREAKING CHANGE:" || "$PR_BODY" =~ "BREAKING CHANGES:" ]]; then
+        echo "You indicated no breaking change, but a BREAKING CHANGE footer was found."
+        read -p "Would you like to edit the breaking change notice? (yes/no): " EDIT_CHOICE
+        if [[ "$EDIT_CHOICE" == "yes" ]]; then
+            read -p "Enter breaking change description: " BREAKING_CHANGE_DESCRIPTION
+            BREAKING_CHANGE="yes"
+        fi
     fi
 fi
 
