@@ -174,8 +174,7 @@ prepPrDetails() {
     # Prompt for PR number if not provided
     if [ -z "$PR_NUMBER" ]; then
         while true; do
-            echo "Enter the Pull Request (PR) number: "
-            read PR_NUMBER
+            read -p "Enter the Pull Request (PR) number: " PR_NUMBER
             if [ -z "$PR_NUMBER" ]; then
                 echo "Error: PR number cannot be empty."
             elif ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
@@ -227,8 +226,7 @@ elif [[ "$SCOPE" == "none" ]]; then
 fi
 
 if [ -z "$DESCRIPTION" ]; then
-    echo -n "Enter commit description: "
-    read DESCRIPTION
+    read -p "Enter commit description: " DESCRIPTION
     if [ -z "$DESCRIPTION" ]; then
         echo "Error: Commit description cannot be empty."
         exit 1
@@ -269,8 +267,7 @@ fi
 
 # Handle BREAKING_CHANGE flag interactively if not set
 if [ -z "$BREAKING_CHANGE" ]; then
-    echo "Is this a breaking change? (yes/no)"
-    read -r BREAKING_CHANGE
+    read -p "Is this a breaking change? (yes/no): " BREAKING_CHANGE
     if [[ "$BREAKING_CHANGE" != "yes" && "$BREAKING_CHANGE" != "no" ]]; then
         echo "Invalid input. Please enter 'yes' or 'no'."
         exit 1
@@ -299,8 +296,7 @@ CONV_COMMIT=$(convertToConventionalCommit "$TYPE" "$SCOPE" "$DESCRIPTION" "$PR_B
 # Review, edit, or cancel the commit message
 echo "Proposed commit message:"
 echo "$CONV_COMMIT"
-echo "Do you want to (A)ccept, (E)dit, or (C)ancel? "
-read -p "[A/e/c]: " choice
+read -p "Do you want to (A)ccept, (E)dit, or (C)ancel? [A/e/c]: " choice
 
 case $choice in
     [Ee]* )
