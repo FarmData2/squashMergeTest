@@ -35,7 +35,7 @@ displayHelp() {
     echo "Example:"
     echo "  $0 --type feat --scope lib --description \"Add new feature\" --pr-number 123 --repo https://github.com/user/repo"
     echo ""
-    echo "This script uses both GitHub CLI (gh) and a JSON CLI processor (jq) and expects both to be installed and authenticated."
+    echo "This script uses both GitHub CLI (gh) and a JSON CLI processor (jq) and expects both to be installed and GitHub CLI to be authenticated with GitHub."
 }
 
 # Parse command line options
