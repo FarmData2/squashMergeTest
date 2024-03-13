@@ -2,7 +2,7 @@
 
 # Define valid types and scopes
 VALID_TYPES=("build" "chore" "ci" "docs" "feat" "fix" "perf" "refactor" "style" "test")
-VALID_SCOPES=("dev" "comp" "lib" "fd2" "examples" "school" "none") # Added 'none' for no scope 
+VALID_SCOPES=("dev" "comp" "lib" "fd2" "examples" "school" "none") # Added 'none' for no scope
 
 # Default values for flags
 TYPE=""
@@ -58,11 +58,11 @@ done
 # Helper function to check if an element is in an array
 elementInArray() {
     local element
-    shopt -s nocasematch 
+    shopt -s nocasematch
     for element in "${@:2}"; do
-        [[ "$element" == "$1" ]] && { shopt -u nocasematch; return 0; } 
+        [[ "$element" == "$1" ]] && { shopt -u nocasematch; return 0; }
     done
-    shopt -u nocasematch 
+    shopt -u nocasematch
     return 1
 }
 
@@ -105,23 +105,23 @@ convertToConventionalCommit() {
     local description=$3
     local body=$4
     local breaking_change=$5
-    local breaking_change_description=$6 
-    local commit_message="${type}" 
-    
+    local breaking_change_description=$6
+    local commit_message="${type}"
+
     if [[ "$scope" != "none" ]]; then
         commit_message="${commit_message}(${scope})"
-    fi 
-    
+    fi
+
     commit_message="${commit_message}: ${description}"
-    
+
     if [[ "$breaking_change" == "yes" && -n "$breaking_change_description" ]]; then
         commit_message="${commit_message}  BREAKING CHANGE: ${breaking_change_description}"
     elif [[ "$breaking_change" == "yes" ]]; then
-        commit_message="${commit_message}\n\n${body}"
+        commit_message="${commit_message} ${body}"
     else
-        commit_message="${commit_message}\n\n${body}"
+        commit_message="${commit_message} ${body}"
     fi
-    
+
     echo "$commit_message"
 }
 
@@ -137,7 +137,7 @@ checkGhCliAuth() {
 }
 # Function to perform a squash merge
 squashMergePR() {
-    local pr_number=$PR_NUMBER
+    local pr_number=$1
     local commit_message=$2
     local repo=$3
     local breaking_change_description=$4
@@ -147,11 +147,62 @@ squashMergePR() {
     echo "Successfully merged PR #$pr_number into $repo." || \
     { echo "Failed to merge PR #$pr_number into $repo."; return 1; }
 }
-# Function to check for external dependencies
+# Function to check for gh and jq. Could expand with suggested install (Perhaps using apt if a Debian system)
 checkDependencies() {
+    local missing_dependencies=()
+
     if ! command -v gh &> /dev/null; then
-        echo "GitHub CLI (gh) could not be found. Please install it to continue."
+        missing_dependencies+=("GitHub CLI (gh)")
+    fi
+
+    if ! command -v jq &> /dev/null; then
+        missing_dependencies+=("jq (Command-line JSON processor)")
+    fi
+
+    if [ ${#missing_dependencies[@]} -ne 0 ]; then
+        echo "The following dependencies are missing:"
+        for dep in "${missing_dependencies[@]}"; do
+            echo " - $dep"
+        done
+        echo "Please install them to continue."
         exit 1
+    fi
+}
+
+# Prepare and extract PR details
+prepPrDetails() {
+    # Prompt for PR number if not provided
+    if [ -z "$PR_NUMBER" ]; then
+        while true; do
+            echo "Enter the Pull Request (PR) number: "
+            read PR_NUMBER
+            if [ -z "$PR_NUMBER" ]; then
+                echo "Error: PR number cannot be empty."
+            elif ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+                echo "Error: PR number must be numeric."
+            else
+                break # Valid PR number entered
+            fi
+        done
+    else
+        echo "Working with detected PR number: $PR_NUMBER."
+    fi
+
+    # Fetch PR details
+    if [ -n "$PR_NUMBER" ]; then
+        echo "Fetching details for PR #$PR_NUMBER..."
+        PR_DETAILS=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json title,body)
+        PR_TITLE=$(echo "$PR_DETAILS" | jq -r '.title')
+        PR_BODY=$(echo "$PR_DETAILS" | jq -r '.body')
+
+        # Echo the current PR number and title
+        echo "Current PR: #$PR_NUMBER - $PR_TITLE"
+        echo "PR Decription: $PR_BODY"
+    fi
+
+    # Direct extraction of the DESCRIPTION from PR_TITLE, if not already provided
+    if [ -z "$DESCRIPTION" ]; then
+        DESCRIPTION=$(echo "$PR_TITLE" | sed -E 's/^[^:]+:?\s*\(?.*\)?\s*:\s*//')
     fi
 }
 
@@ -160,6 +211,29 @@ checkDependencies
 
 # Main Entrypoint (Beginning with gh auth check)
 checkGhCliAuth
+
+# Prompt for number and display current title and body of PR. We assume that the body will be used as the commit description in the squash merge
+prepPrDetails
+
+# Interactive prompts for TYPE, SCOPE, DESCRIPTION if still needed
+if [ -z "$TYPE" ]; then
+    promptForValue "Enter commit type" "feat" VALID_TYPES[@] TYPE
+fi
+
+if [ -z "$SCOPE" ]; then
+    promptForValue "Enter commit scope" "none" VALID_SCOPES[@] SCOPE
+elif [[ "$SCOPE" == "none" ]]; then
+    SCOPE="" # If scope is 'none', treat it as an empty string for formatting
+fi
+
+if [ -z "$DESCRIPTION" ]; then
+    echo -n "Enter commit description: "
+    read DESCRIPTION
+    if [ -z "$DESCRIPTION" ]; then
+        echo "Error: Commit description cannot be empty."
+        exit 1
+    fi
+fi
 
 # Extract repository info from URL or current git context
 if [[ -n "$REPO_URL" ]]; then
@@ -193,39 +267,6 @@ else
     exit 1
 fi
 
-# Fetch PR title and body if not provided via CLI flags
-if [ -z "$PR_TITLE" ] && [ -z "$PR_BODY" ] && [ -n "$PR_NUMBER" ]; then
-    echo "Fetching PR #$PR_NUMBER details..."
-    PR_DETAILS=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json title,body)
-    PR_TITLE=$(echo "$PR_DETAILS" | jq -r '.title')
-    PR_BODY=$(echo "$PR_DETAILS" | jq -r '.body')
-fi
-
-# Extract type, scope, and description from PR if not provided via CLI flags
-if [ -z "$TYPE" ] || [ -z "$SCOPE" ] || [ -z "$DESCRIPTION" ]; then
-    echo "Extracting commit details from PR title..."
-    TYPE=$(echo "$PR_TITLE" | cut -d':' -f1 | tr '[:upper:]' '[:lower:]')
-    SCOPE=$(echo "$PR_TITLE" | cut -d'(' -f2 | cut -d')' -f1 | tr '[:upper:]' '[:lower:]')
-    DESCRIPTION=$(echo "$PR_TITLE" | cut -d')' -f2- | cut -d':' -f2-)
-fi
-
-# Interactive prompts for TYPE, SCOPE, DESCRIPTION if still needed
-if [ -z "$TYPE" ]; then
-    promptForValue "Enter commit type" "feat" VALID_TYPES[@] TYPE
-fi
-
-if [ -z "$SCOPE" ]; then
-    promptForValue "Enter commit scope" "none" VALID_SCOPES[@] SCOPE
-fi
-
-if [ -z "$DESCRIPTION" ]; then
-    echo -n "Enter commit description: "
-    read DESCRIPTION
-    if [ -z "$DESCRIPTION" ]; then
-        echo "Error: Commit description cannot be empty."
-        exit 1
-    fi
-fi
 # Handle BREAKING_CHANGE flag interactively if not set
 if [ -z "$BREAKING_CHANGE" ]; then
     echo "Is this a breaking change? (yes/no)"
@@ -269,14 +310,16 @@ case $choice in
         CONV_COMMIT=$(cat "$TMPFILE")
         rm "$TMPFILE"
         ;;
-    [Cc]* ) 
+    [Cc]* )
         echo "Operation cancelled."
         exit 0
         ;;
-    * ) 
+    * )
         echo "Accepting commit and beginning squash merge."
         ;;
 esac
 
-# Perform the squash merge 
+echo "Current PR number is "
+echo "$PR_NUMBER"
+# Perform the squash merge
 squashMergePR "$PR_NUMBER" "$CONV_COMMIT" "$REPO"
