@@ -308,15 +308,15 @@ if [ -z "$BREAKING_CHANGE" ]; then
     fi
 fi
 
-# Prompt for breaking change description if necessary
-if [[ "$BREAKING_CHANGE" == "yes" && -z "$BREAKING_CHANGE_DESCRIPTION" ]]; then
-    if [[ "$PR_BODY" =~ "BREAKING CHANGE:" || "$PR_BODY" =~ "BREAKING CHANGES:" ]]; then
-        BREAKING_CHANGE_DESCRIPTION=$(echo "$PR_BODY" | sed -n '/BREAKING CHANGE:/,$p' | sed 's/BREAKING CHANGE[S]*: //')
-        echo "Breaking changes found and appended to commit."
-    else
-        echo "You indicated this is a breaking change. Please provide a specific description of the breaking change."
-        read -p "Enter breaking change description: " BREAKING_CHANGE_DESCRIPTION
-    fi
+# Handle BREAKING_CHANGE flag interactively if not set
+if [ -z "$BREAKING_CHANGE" ]; then
+    read -p "Is this a breaking change? (yes/no): " BREAKING_CHANGE
+    case "$BREAKING_CHANGE" in
+        yes|y) BREAKING_CHANGE="yes" ;;
+        no|n) BREAKING_CHANGE="no" ;;
+        *) echo "Invalid input. Please enter 'yes' or 'no' ('y' or 'n')."
+           exit 1 ;;
+    esac
 fi
 
 # Check for discrepancy (If there isn't a breaking change but one is provided in the footer of the PR)
@@ -324,10 +324,15 @@ if [[ "$BREAKING_CHANGE" == "no" ]]; then
     if [[ "$PR_BODY" =~ "BREAKING CHANGE:" || "$PR_BODY" =~ "BREAKING CHANGES:" ]]; then
         echo "You indicated no breaking change, but a BREAKING CHANGE footer was found."
         read -p "Would you like to edit the breaking change notice? (yes/no): " EDIT_CHOICE
-        if [[ "$EDIT_CHOICE" == "yes" ]]; then
-            read -p "Enter breaking change description: " BREAKING_CHANGE_DESCRIPTION
-            BREAKING_CHANGE="yes"
-        fi
+        case "$EDIT_CHOICE" in
+            yes|y) 
+                read -p "Enter breaking change description: " BREAKING_CHANGE_DESCRIPTION
+                BREAKING_CHANGE="yes" ;;
+            no|n) 
+                ;; # No action needed, just proceed
+            *) echo "Invalid input. Please enter 'yes' or 'no' ('y' or 'n')."
+               exit 1 ;;
+        esac
     fi
 fi
 
