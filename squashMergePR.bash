@@ -302,15 +302,6 @@ fi
 # Handle BREAKING_CHANGE flag interactively if not set
 if [ -z "$BREAKING_CHANGE" ]; then
     read -p "Is this a breaking change? (yes/no): " BREAKING_CHANGE
-    if [[ "$BREAKING_CHANGE" != "yes" && "$BREAKING_CHANGE" != "no" ]]; then
-        echo "Invalid input. Please enter 'yes' or 'no'."
-        exit 1
-    fi
-fi
-
-# Handle BREAKING_CHANGE flag interactively if not set
-if [ -z "$BREAKING_CHANGE" ]; then
-    read -p "Is this a breaking change? (yes/no): " BREAKING_CHANGE
     case "$BREAKING_CHANGE" in
         yes|y) BREAKING_CHANGE="yes" ;;
         no|n) BREAKING_CHANGE="no" ;;
