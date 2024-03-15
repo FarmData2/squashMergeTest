@@ -329,7 +329,7 @@ fi
 
 # Add breaking change to PR body
 if [[ "$BREAKING_CHANGE" == "yes" && -n "$BREAKING_CHANGE_DESCRIPTION" ]]; then
-    PR_BODY="${PR_BODY}\n\nBREAKING CHANGE: ${BREAKING_CHANGE_DESCRIPTION}"
+    PR_BODY="${PR_BODY} BREAKING CHANGE: ${BREAKING_CHANGE_DESCRIPTION}"
 fi
 
 # Generate the conventional commit message
