@@ -196,15 +196,43 @@ prepPrDetails() {
             PR_NUMBER=""
         else
             # Fetch PR details including changed files and merge state status
-            echo "Fetching details for PR #$PR_NUMBER..."
+           echo "Fetching details for PR #$PR_NUMBER..."
+           
+        # Get PR details to ensure mergability and user context. Tries 3 times as "UNKNOWN" appears if status is still being retrieved. 
+        for i in {1..3}; do
             PR_DETAILS=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json title,body,state,isDraft,author,changedFiles,mergeStateStatus)
-            PR_TITLE=$(echo "$PR_DETAILS" | jq -r '.title')
-            PR_BODY=$(echo "$PR_DETAILS" | jq -r '.body')
+            
             PR_STATE=$(echo "$PR_DETAILS" | jq -r '.state')
             PR_IS_DRAFT=$(echo "$PR_DETAILS" | jq -r '.isDraft')
-            PR_AUTHOR=$(echo "$PR_DETAILS" | jq -r '.author.login')
-            PR_CHANGED_FILES=$(echo "$PR_DETAILS" | jq -r '.changedFiles')
             PR_MERGE_STATE_STATUS=$(echo "$PR_DETAILS" | jq -r '.mergeStateStatus')
+            
+            # Check if PR is closed, draft, or not ready based on merge state status
+            if [[ "$PR_STATE" == "closed" ]]; then
+                echo "This PR is closed."
+                PR_NUMBER=""
+                break
+            elif [[ "$PR_IS_DRAFT" == "true" ]]; then
+                echo "This PR is in draft state and is not ready to be merged. Please enter a different PR number."
+                PR_NUMBER=""
+                break
+            elif [[ "$PR_MERGE_STATE_STATUS" != "CLEAN" ]]; then
+                echo "This PR is not in a state that can be merged (Merge State Status: $PR_MERGE_STATE_STATUS). Please choose a different PR or resolve the issues."
+                PR_NUMBER=""
+                continue
+            else
+                echo "This PR is open and ready for further actions."
+                echo "" 
+                valid_pr_found=true
+                
+                # Extract additional PR details only if the PR is valid
+                PR_TITLE=$(echo "$PR_DETAILS" | jq -r '.title')
+                PR_BODY=$(echo "$PR_DETAILS" | jq -r '.body')
+                PR_AUTHOR=$(echo "$PR_DETAILS" | jq -r '.author.login')
+                PR_CHANGED_FILES=$(echo "$PR_DETAILS" | jq -r '.changedFiles')
+                
+                break
+            fi
+        done
 
             # Echo the current PR number, title, description, and additional details
             echo ""
@@ -214,22 +242,6 @@ prepPrDetails() {
             echo "Changed Files: $PR_CHANGED_FILES"
             echo "Merge State Status: $PR_MERGE_STATE_STATUS"
             echo ""
-
-            # Check if PR is closed, draft, or not ready based on merge state status
-            if [[ "$PR_STATE" == "closed" ]]; then
-                echo "This PR is closed."
-                PR_NUMBER=""
-            elif [[ "$PR_IS_DRAFT" == "true" ]]; then
-                echo "This PR is in draft state and is not ready to be merged. Please enter a different PR number."
-                PR_NUMBER=""
-            elif [[ "$PR_MERGE_STATE_STATUS" != "CLEAN" ]]; then
-                echo "This PR is not in a state that can be merged (Merge State Status: $PR_MERGE_STATE_STATUS). Please choose a different PR or resolve the issues."
-                PR_NUMBER=""
-            else
-                echo "This PR is open and ready for further actions."
-                echo "" # Adds clean newline
-                valid_pr_found=true
-            fi
         fi
     done
 
