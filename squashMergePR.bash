@@ -316,10 +316,12 @@ if [[ "$BREAKING_CHANGE" == "no" ]]; then
         echo "You indicated no breaking change, but a BREAKING CHANGE footer was found."
         read -p "Would you like to edit the breaking change notice? (yes/no): " EDIT_CHOICE
         case "$EDIT_CHOICE" in
-            yes|y) 
+            yes|y)
+                echo "Current PR Description: $PR_BODY"
+                echo ""
                 read -p "Enter breaking change description: " BREAKING_CHANGE_DESCRIPTION
                 BREAKING_CHANGE="yes" ;;
-            no|n) 
+            no|n)
                 ;; # No action needed, just proceed
             *) echo "Invalid input. Please enter 'yes' or 'no' ('y' or 'n')."
                exit 1 ;;
