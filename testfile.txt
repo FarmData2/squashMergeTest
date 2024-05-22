@@ -1,2 +1,2 @@
-You know.... I could tell a UDP joke.. but you might not get it!
+You know.... I could tell a TCP joke.. but you'll need to listen for all 3 parts!
 That's funny stuff!
