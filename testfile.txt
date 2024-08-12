@@ -9,3 +9,4 @@ Test change for: feat(docs):
 Test change for: feat(docs): add breaking change
 Test change for: feat(docs): multiple breaking changes
 Test change for: feat(docs): add very long description that exceeds the usual length of a PR title and might cause issues with parsing or display
+Test change for: feat(docs): add special characters (!@#$%^&*())
