@@ -2,7 +2,7 @@
 
 # Define valid types and scopes
 VALID_TYPES=("build" "chore" "ci" "docs" "feat" "fix" "perf" "refactor" "style" "test")
-VALID_SCOPES=("dev" "comp" "lib" "fd2" "examples" "school" "none") # Added 'none' for no scope
+VALID_SCOPES=("dev" "comp" "lib" "fd2" "examples" "school" "none")
 
 # Default values for flags
 TYPE=""
@@ -25,17 +25,12 @@ displayHelp() {
     echo "  --body <body>                           Body of the commit message."
     echo "  --breaking-change <yes|no>              Specify if the commit introduces a breaking change."
     echo "  --breaking-change-description <desc>    Description of the breaking change."
-    echo "  --repo <GitHub repo URL>                GitHub repository URL. Supports HTTPS, SSH, and '.git' links (e.g., https://github.com/FarmData2/FarmData2, git@github.com:FarmData2/FarmData2.git)."
+    echo "  --repo <GitHub repo URL>                GitHub repository URL."
     echo "  --pr-number <PR number>                 The number of the pull request to merge."
     echo "  --help                                  Display this help message and exit."
     echo ""
     echo "If required options are not provided via command-line arguments,"
     echo "interactive prompts will be used to gather necessary information."
-    echo ""
-    echo "Example:"
-    echo "  $0 --type feat --scope lib --description \"Add new feature\" --pr-number 123 --repo https://github.com/user/repo"
-    echo ""
-    echo "This script uses the GitHub CLI (gh) and expects it to be installed and authenticated."
 }
 
 # Parse command line options
@@ -53,7 +48,6 @@ while [[ $# -gt 0 ]]; do
         *) echo "Unknown option: $1"; displayHelp; exit 1 ;;
     esac
 done
-
 
 # Helper function to check if an element is in an array
 elementInArray() {
@@ -108,6 +102,7 @@ promptForValue() {
         fi
     done
 }
+
 # Function to convert PR title to conventional commit format
 convertToConventionalCommit() {
     local type=$1
@@ -118,18 +113,20 @@ convertToConventionalCommit() {
     local breaking_change_description=$6
     local commit_message="${type}"
 
-    if [[ "$scope" != "none" ]]; then
+    if [[ "$scope" != "none" && -n "$scope" ]]; then
         commit_message="${commit_message}(${scope})"
     fi
 
     commit_message="${commit_message}: ${description}"
 
     if [[ "$breaking_change" == "yes" && -n "$breaking_change_description" ]]; then
-        commit_message="${commit_message}  BREAKING CHANGE: ${breaking_change_description}"
-    elif [[ "$breaking_change" == "yes" ]]; then
-        commit_message="${commit_message} ${body}"
-    else
-        commit_message="${commit_message} ${body}"
+        commit_message="${commit_message}
+
+BREAKING CHANGE: ${breaking_change_description}"
+    elif [[ -n "$body" ]]; then
+        commit_message="${commit_message}
+
+${body}"
     fi
 
     echo "$commit_message"
@@ -145,19 +142,20 @@ checkGhCliAuth() {
         echo "Logged in to the GitHub CLI."
     fi
 }
+
 # Function to perform a squash merge
 squashMergePR() {
     local pr_number=$1
     local commit_message=$2
     local repo=$3
-    local breaking_change_description=$4
 
     echo "Attempting to merge PR #$pr_number into $repo..."
-    gh pr merge "$pr_number" --repo "$repo" -s -t "$commit_message" -b "$DESCRIPTION $breaking_change_description"
-    echo "Successfully merged PR #$pr_number into $repo." || \
+    gh pr merge "$pr_number" --repo "$repo" -s -t "$commit_message" -b "$DESCRIPTION $BREAKING_CHANGE_DESCRIPTION" || \
     { echo "Failed to merge PR #$pr_number into $repo."; return 1; }
+    echo "Successfully merged PR #$pr_number into $repo."
 }
-# Function to check for gh and jq. Could expand with suggested install (Perhaps using apt if a Debian system)
+
+# Function to check for gh and jq
 checkDependencies() {
     local missing_dependencies=()
 
@@ -178,7 +176,42 @@ checkDependencies() {
         exit 1
     fi
 }
-# Retrieves PR details from Github, checks the state (if merged) and gets detailed (Title, Body, Description, Breaking Changes if found)
+
+# Function to parse PR title
+parsePrTitle() {
+    local pr_title="$1"
+    local type=""
+    local scope=""
+    local description=""
+
+    # Regex to fit conventional commit format.
+    if [[ $pr_title =~ ^([a-z]+)(\(([a-z]+)\))?:\ (.+)$ ]]; then
+        type="${BASH_REMATCH[1]}"
+        scope="${BASH_REMATCH[3]}"
+        description="${BASH_REMATCH[4]}"
+    fi
+
+    echo "$type|$scope|$description"
+}
+
+#  Function to parse PR Body
+parsePrBody() {
+    local pr_body="$1"
+    local breaking_change=""
+    local breaking_change_description=""
+
+    if [[ "$pr_body" =~ BREAKING\ CHANGE:\ (.+) ]]; then
+        breaking_change="yes"
+        breaking_change_description="${BASH_REMATCH[1]}"
+    elif [[ "$pr_body" =~ BREAKING\ CHANGES:\ (.+) ]]; then
+        breaking_change="yes"
+        breaking_change_description="${BASH_REMATCH[1]}"
+    fi
+
+    echo "$breaking_change|$breaking_change_description"
+}
+
+# Function to prepare PR body
 prepPrDetails() {
     local valid_pr_found=false
 
@@ -195,7 +228,7 @@ prepPrDetails() {
             echo "Error: PR number must be numeric."
             PR_NUMBER=""
         else
-            # Fetch PR details including changed files and merge state status
+            # Fetch PR details
             echo "Fetching details for PR #$PR_NUMBER..."
             PR_DETAILS=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json title,body,state,isDraft,author,changedFiles,mergeStateStatus)
             PR_TITLE=$(echo "$PR_DETAILS" | jq -r '.title')
@@ -206,7 +239,11 @@ prepPrDetails() {
             PR_CHANGED_FILES=$(echo "$PR_DETAILS" | jq -r '.changedFiles')
             PR_MERGE_STATE_STATUS=$(echo "$PR_DETAILS" | jq -r '.mergeStateStatus')
 
-            # Echo the current PR number, title, description, and additional details
+            # Parse PR title and body
+            IFS='|' read -r PARSED_TYPE PARSED_SCOPE PARSED_DESCRIPTION <<< "$(parsePrTitle "$PR_TITLE")"
+            IFS='|' read -r PARSED_BREAKING_CHANGE PARSED_BREAKING_CHANGE_DESCRIPTION <<< "$(parsePrBody "$PR_BODY")"
+
+            # Echo PR details
             echo ""
             echo "Current PR: #$PR_NUMBER - $PR_TITLE"
             echo "PR Description: $PR_BODY"
@@ -215,7 +252,7 @@ prepPrDetails() {
             echo "Merge State Status: $PR_MERGE_STATE_STATUS"
             echo ""
 
-            # Check if PR is closed, draft, or not ready based on merge state status
+            # Check PR state and merge status
             if [[ "$PR_STATE" == "closed" ]]; then
                 echo "This PR is closed."
                 PR_NUMBER=""
@@ -227,45 +264,75 @@ prepPrDetails() {
                 PR_NUMBER=""
             else
                 echo "This PR is open and ready for further actions."
-                echo "" # Adds clean newline
+                echo ""
                 valid_pr_found=true
             fi
         fi
     done
 
-    # Direct extraction of the DESCRIPTION from PR_TITLE, if not already provided
+    # Use parsed values or prompt for missing/invalid parts
+    if [ -z "$TYPE" ]; then
+        if elementInArray "$PARSED_TYPE" "${VALID_TYPES[@]}"; then
+            TYPE="$PARSED_TYPE"
+            echo "Using type '$TYPE' from PR title."
+        else
+            promptForValue "Please enter a valid commit type" "feat" VALID_TYPES[@] TYPE
+        fi
+    fi
+
+    if [ -z "$SCOPE" ]; then
+        if elementInArray "$PARSED_SCOPE" "${VALID_SCOPES[@]}"; then
+            SCOPE="$PARSED_SCOPE"
+            echo "Using scope '$SCOPE' from PR title."
+        else
+            promptForValue "Enter commit scope" "none" VALID_SCOPES[@] SCOPE
+        fi
+    fi
+
     if [ -z "$DESCRIPTION" ]; then
-        DESCRIPTION=$(echo "$PR_TITLE" | sed -E 's/^[^:]+:?\s*\(?.*\)?\s*:\s*//')
+        if [ -n "$PARSED_DESCRIPTION" ]; then
+            DESCRIPTION="$PARSED_DESCRIPTION"
+            echo "Using description '$DESCRIPTION' from PR title."
+        else
+            read -p "Enter commit description: " DESCRIPTION
+            if [ -z "$DESCRIPTION" ]; then
+                echo "Error: Commit description cannot be empty."
+                exit 1
+            fi
+        fi
+    fi
+
+    # Handle breaking changes
+    if [ -z "$BREAKING_CHANGE" ]; then
+        if [ "$PARSED_BREAKING_CHANGE" == "yes" ]; then
+            BREAKING_CHANGE="yes"
+            echo "Breaking change detected in PR body."
+        else
+            read -p "Is this a breaking change? (yes/no): " BREAKING_CHANGE
+        fi
+    fi
+
+    # Normalize BREAKING_CHANGE value
+    case "$BREAKING_CHANGE" in
+        yes|y) BREAKING_CHANGE="yes" ;;
+        no|n|*) BREAKING_CHANGE="no" ;;
+    esac
+
+    if [ "$BREAKING_CHANGE" == "yes" ]; then
+        if [ -z "$BREAKING_CHANGE_DESCRIPTION" ]; then
+            if [ -n "$PARSED_BREAKING_CHANGE_DESCRIPTION" ]; then
+                BREAKING_CHANGE_DESCRIPTION="$PARSED_BREAKING_CHANGE_DESCRIPTION"
+                echo "Using breaking change description from PR body."
+            else
+                read -p "Enter breaking change description: " BREAKING_CHANGE_DESCRIPTION
+            fi
+        fi
     fi
 }
 
-# Run the dependency check (Pre entrypoint)
+# Main script execution
 checkDependencies
-
-# Main Entrypoint (Beginning with gh auth check)
 checkGhCliAuth
-
-# Prompt for number and display current title and body of PR. We assume that the body will be used as the commit description in the squash merge
-prepPrDetails
-
-# Interactive prompts for TYPE, SCOPE, DESCRIPTION if still needed
-if [ -z "$TYPE" ]; then
-    promptForValue "Please enter a valid commit type" "feat" VALID_TYPES[@] TYPE
-fi
-
-if [ -z "$SCOPE" ]; then
-    promptForValue "Enter commit scope" "none" VALID_SCOPES[@] SCOPE
-elif [[ "$SCOPE" == "none" ]]; then
-    SCOPE="" # If scope is 'none', treat it as an empty string for formatting
-fi
-
-if [ -z "$DESCRIPTION" ]; then
-    read -p "Enter commit description: " DESCRIPTION
-    if [ -z "$DESCRIPTION" ]; then
-        echo "Error: Commit description cannot be empty."
-        exit 1
-    fi
-fi
 
 # Extract repository info from URL or current git context
 if [[ -n "$REPO_URL" ]]; then
@@ -299,40 +366,8 @@ else
     exit 1
 fi
 
-# Handle BREAKING_CHANGE flag interactively if not set
-if [ -z "$BREAKING_CHANGE" ]; then
-    read -p "Is this a breaking change? (yes/no): " BREAKING_CHANGE
-    case "$BREAKING_CHANGE" in
-        yes|y) BREAKING_CHANGE="yes" ;;
-        no|n) BREAKING_CHANGE="no" ;;
-        *) echo "Invalid input. Please enter 'yes' or 'no' ('y' or 'n')."
-           exit 1 ;;
-    esac
-fi
-
-# Check for discrepancy (If there isn't a breaking change but one is provided in the footer of the PR)
-if [[ "$BREAKING_CHANGE" == "no" ]]; then
-    if [[ "$PR_BODY" =~ "BREAKING CHANGE:" || "$PR_BODY" =~ "BREAKING CHANGES:" ]]; then
-        echo "You indicated no breaking change, but a BREAKING CHANGE footer was found."
-        read -p "Would you like to edit the breaking change notice? (yes/no): " EDIT_CHOICE
-        case "$EDIT_CHOICE" in
-            yes|y)
-                echo "Current PR Description: $PR_BODY"
-                echo ""
-                read -p "Enter breaking change description: " BREAKING_CHANGE_DESCRIPTION
-                BREAKING_CHANGE="yes" ;;
-            no|n)
-                ;; # No action needed, just proceed
-            *) echo "Invalid input. Please enter 'yes' or 'no' ('y' or 'n')."
-               exit 1 ;;
-        esac
-    fi
-fi
-
-# Add breaking change to PR body
-if [[ "$BREAKING_CHANGE" == "yes" && -n "$BREAKING_CHANGE_DESCRIPTION" ]]; then
-    PR_BODY="${PR_BODY} \n\nBREAKING CHANGE: ${BREAKING_CHANGE_DESCRIPTION}"
-fi
+# Begin prepPrDetails call
+prepPrDetails
 
 # Generate the conventional commit message
 CONV_COMMIT=$(convertToConventionalCommit "$TYPE" "$SCOPE" "$DESCRIPTION" "$PR_BODY" "$BREAKING_CHANGE" "$BREAKING_CHANGE_DESCRIPTION")
@@ -346,7 +381,7 @@ case $choice in
     [Ee]* )
         TMPFILE=$(mktemp)
         echo "$CONV_COMMIT" > "$TMPFILE"
-        nano "$TMPFILE"
+        ${EDITOR:-nano} "$TMPFILE"
         CONV_COMMIT=$(cat "$TMPFILE")
         rm "$TMPFILE"
         ;;
@@ -361,3 +396,11 @@ esac
 
 # Perform the squash merge
 squashMergePR "$PR_NUMBER" "$CONV_COMMIT" "$REPO"
+
+# Check the result of squage merge
+if [ $? -eq 0 ]; then
+    echo "Pull Request #$PR_NUMBER has been successfully merged."
+else
+    echo "Failed to merge Pull Request #$PR_NUMBER. Please check the error message above and try again."
+    exit 1
+fi
