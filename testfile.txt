@@ -6,3 +6,4 @@ Test change for: feat(invalid): test invalid scope
 Test change for: add new feature
 Test change for: feat: add new feature without scope
 Test change for: feat(docs):
+Test change for: feat(docs): add breaking change
