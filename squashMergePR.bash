@@ -467,6 +467,28 @@ else
     exit 1
 fi
 
+# Function to list open PRs
+
+list_prs() {
+    local prs
+    prs=$(gh pr list --json number,title,headRefName --jq '.[] | "\(.number)|\(.title)|\(.headRefName)"')
+    
+    if [ -z "$prs" ]; then
+        echo "No open pull requests found."
+        return
+    fi
+
+    echo "Open Pull Requests:"
+    echo "$prs" | while IFS='|' read -r number title branch; do
+        printf "PR #%s: %s (%s)\n" "$number" "$title" "$branch"
+    done
+}
+
+# Check if PR_NUMBER is defined via cli flag to avoid call if not needed
+if [ -z "$PR_NUMBER" ]; then
+    list_prs
+fi
+
 prepPrDetails
 
 # Generate the conventional commit message
