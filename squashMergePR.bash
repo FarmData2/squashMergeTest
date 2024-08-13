@@ -194,22 +194,27 @@ parsePrTitle() {
     local type=""
     local scope=""
     local description=""
-
-    # Regex to fit conventional commit format.
-    if [[ $pr_title =~ ^([a-z]+)(\(([a-z]+)\))?:\ (.+)$ ]]; then
+    # Regex to fit conventional commit format, including scope only and empty description
+    if [[ $pr_title =~ ^([a-z]+)\(([a-z]+)\):(.*)$ ]]; then
         type="${BASH_REMATCH[1]}"
-        scope="${BASH_REMATCH[3]}"
-        description="${BASH_REMATCH[4]}"
-    elif [[ $pr_title =~ ^([a-z]+):\ (.+)$ ]]; then
+        scope="${BASH_REMATCH[2]}"
+        description="${BASH_REMATCH[3]#"${BASH_REMATCH[3]%%[![:space:]]*}"}" 
+    elif [[ $pr_title =~ ^([a-z]+)\(([a-z]+)\)$ ]]; then
         type="${BASH_REMATCH[1]}"
-        description="${BASH_REMATCH[2]}"
+        scope="${BASH_REMATCH[2]}"
+    elif [[ $pr_title =~ ^\(([a-z]+)\):(.*)$ ]]; then
+        scope="${BASH_REMATCH[1]}"
+        description="${BASH_REMATCH[2]#"${BASH_REMATCH[2]%%[![:space:]]*}"}" 
+    elif [[ $pr_title =~ ^\(([a-z]+)\)$ ]]; then
+        scope="${BASH_REMATCH[1]}"
+    elif [[ $pr_title =~ ^([a-z]+):(.*)$ ]]; then
+        type="${BASH_REMATCH[1]}"
+        description="${BASH_REMATCH[2]#"${BASH_REMATCH[2]%%[![:space:]]*}"}" 
     elif [[ $pr_title =~ ^(.+)$ ]]; then
         description="${BASH_REMATCH[1]}"
     fi
-
     echo "$type|$scope|$description"
 }
-
 # Function to parse PR Body
 parsePrBody() {
     local pr_body="$1"
