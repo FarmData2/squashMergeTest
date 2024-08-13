@@ -9,7 +9,7 @@ NC='\033[0m' # No Color
 
 # Define valid types and scopes
 VALID_TYPES=("build" "chore" "ci" "docs" "feat" "fix" "perf" "refactor" "style" "test")
-VALID_SCOPES=("dev" "comp" "lib" "fd2" "examples" "school" "none")
+VALID_SCOPES=("dev" "comp" "lib" "fd2" "examples" "school" "none" "docs")
 
 # Default values for flags
 TYPE=""
