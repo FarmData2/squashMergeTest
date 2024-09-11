@@ -114,27 +114,51 @@ promptForValue() {
 convertToConventionalCommit() {
     local type=$1
     local scope=$2
-    local description=$3
+    local title=$3
     local body=$4
-    local breaking_change=$5
-    local breaking_change_description=$6
-    local commit_message="${type}"
+    local breaking_changes=$5
+    local co_authors=$6
+    local commit_message=""
+
+    # Construct the commit message without duplicates
+    if [[ -n "$type" ]]; then
+        commit_message="${type}"
+    fi
 
     if [[ "$scope" != "none" && -n "$scope" ]]; then
         commit_message="${commit_message}(${scope})"
     fi
 
-    commit_message="${commit_message}: ${description}"
+    if [[ -n "$title" ]]; then
+        commit_message="${commit_message}: ${title}"
+    fi
 
-    if [[ "$breaking_change" == "yes" && -n "$breaking_change_description" ]]; then
-        commit_message="${commit_message}
-
-BREAKING CHANGE: ${breaking_change_description}"
-    elif [[ -n "$body" ]]; then
+    # Add body (PR description) only if it's not empty
+    if [[ -n "$body" ]]; then
         commit_message="${commit_message}
 
 ${body}"
     fi
+
+    # Add breaking changes only if they are not empty
+    if [[ -n "$breaking_changes" ]]; then
+        commit_message="${commit_message}
+
+${breaking_changes}"
+    fi
+
+    # Add co-authors only if they are not empty
+    if [[ -n "$co_authors" ]]; then
+        commit_message="${commit_message}
+
+${co_authors}"
+    fi
+
+    # Remove any duplicate lines
+    commit_message=$(echo "$commit_message" | awk '!seen[$0]++')
+
+    # Ensure that the type and scope are not duplicated
+    commit_message=$(echo "$commit_message" | sed -E 's/(^.*\s+)(\1)+/\1/g')
 
     echo "$commit_message"
 }
@@ -218,22 +242,38 @@ parsePrTitle() {
 # Function to parse PR Body
 parsePrBody() {
     local pr_body="$1"
-    local breaking_change=""
-    local breaking_change_description=""
+    local breaking_changes=""
+    local co_authors=""
     local body=""
+    local in_breaking_change=false
+    local in_co_authors=false
 
-    if [[ "$pr_body" =~ BREAKING\ CHANGE:\ (.+) ]]; then
-        breaking_change="yes"
-        breaking_change_description="${BASH_REMATCH[1]}"
-    elif [[ "$pr_body" =~ BREAKING\ CHANGES:\ (.+) ]]; then
-        breaking_change="yes"
-        breaking_change_description="${BASH_REMATCH[1]}"
-    fi
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^BREAKING\ CHANGE:\ (.+)$ ]]; then
+            breaking_changes+="${line}\n"
+            in_breaking_change=true
+            in_co_authors=false
+        elif [[ "$line" =~ ^Co-authored-by:\ (.+)$ ]]; then
+            co_authors+="${line}\n"
+            in_breaking_change=false
+            in_co_authors=true
+        elif [[ -z "$line" && "$in_breaking_change" == true ]]; then
+            breaking_changes+="${line}\n"
+        elif [[ -z "$line" && "$in_co_authors" == true ]]; then
+            co_authors+="${line}\n"
+        else
+            body+="${line}\n"
+            in_breaking_change=false
+            in_co_authors=false
+        fi
+    done <<< "$pr_body"
 
-    # Extract body (everything that's not a breaking change description)
-    body=$(echo "$pr_body" | sed -e 's/BREAKING CHANGE:.*//g' -e 's/BREAKING CHANGES:.*//g' | tr -d '\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+    # Trim leading/trailing whitespace
+    body=$(echo -e "$body" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+    breaking_changes=$(echo -e "$breaking_changes" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+    co_authors=$(echo -e "$co_authors" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
 
-    echo "$breaking_change|$breaking_change_description|$body"
+    echo -e "$breaking_changes|$co_authors|$body"
 }
 
 # Function to check PR title components
@@ -291,7 +331,7 @@ prepPrDetails() {
 
             # Parse PR title and body
             IFS='|' read -r PARSED_TYPE PARSED_SCOPE PARSED_DESCRIPTION <<< "$(parsePrTitle "$PR_TITLE")"
-            IFS='|' read -r PARSED_BREAKING_CHANGE PARSED_BREAKING_CHANGE_DESCRIPTION PARSED_BODY <<< "$(parsePrBody "$PR_BODY")"
+            IFS='|' read -r PARSED_BREAKING_CHANGES PARSED_CO_AUTHORS PARSED_BODY <<< "$(parsePrBody "$PR_BODY")"
 
             # Check PR title components
             TITLE_CHECK_RESULT=$(checkPrTitleComponents "$PARSED_TYPE" "$PARSED_SCOPE" "$PARSED_DESCRIPTION")
@@ -429,6 +469,50 @@ prepPrDetails() {
             read -p "Enter PR body (optional): " PR_BODY
         fi
     fi
+
+    # Generate the initial conventional commit message
+    CONV_COMMIT=$(convertToConventionalCommit "$TYPE" "$SCOPE" "$PR_TITLE" "$PR_BODY" "$PARSED_BREAKING_CHANGES" "$PARSED_CO_AUTHORS")
+
+    # Review, edit, or cancel the commit message
+    while true; do
+        echo -e "${BLUE}Proposed commit message:${NC}"
+        echo -e "${YELLOW}$CONV_COMMIT${NC}"
+        read -p "Do you want to (A)ccept, (E)dit, or (C)ancel? [A/e/c]: " choice
+
+        case $choice in
+            [Aa]* )
+                echo -e "${GREEN}"
+                cat << "EOF"
+                            +&-
+                           _.-^-._    .--.
+                        .-'   _   '-. |__|
+                       /     |_|     \|  |
+                      /               \  |
+                     /|     _____     |\ |
+                      |    |==|==|    |  |
+  |---|---|---|---|---|    |--|--|    |  |
+  |---|---|---|---|---|    |==|==|    |  |
+  ^^^^^^^^^^^^Beginning Squash Merge^^^^^^^^^^
+EOF
+                echo -e "${NC}"
+                break 
+                ;;
+            [Ee]* )
+                TMPFILE=$(mktemp)
+                echo "$CONV_COMMIT" > "$TMPFILE"
+                ${EDITOR:-nano} "$TMPFILE"
+                CONV_COMMIT=$(cat "$TMPFILE")
+                rm "$TMPFILE"
+                ;;
+            [Cc]* )
+                echo -e "${YELLOW}Operation cancelled.${NC}"
+                exit 0
+                ;;
+            * )
+                echo -e "${RED}Invalid choice. Please enter 'A' to accept, 'E' to edit, or 'C' to cancel.${NC}"
+                ;;
+        esac
+    done
 }
 
 # Main script execution
@@ -490,50 +574,6 @@ if [ -z "$PR_NUMBER" ]; then
 fi
 
 prepPrDetails
-
-# Generate the conventional commit message
-CONV_COMMIT=$(convertToConventionalCommit "$TYPE" "$SCOPE" "$DESCRIPTION" "$PR_BODY" "$BREAKING_CHANGE" "$BREAKING_CHANGE_DESCRIPTION")
-
-# Review, edit, or cancel the commit message
-while true; do
-    echo -e "${BLUE}Proposed commit message:${NC}"
-    echo -e "${YELLOW}$CONV_COMMIT${NC}"
-    read -p "Do you want to (A)ccept, (E)dit, or (C)ancel? [A/e/c]: " choice
-
-    case $choice in
-        [Aa]* )
-            echo -e "${GREEN}"
-            cat << "EOF"
-                            +&-
-                           _.-^-._    .--.
-                        .-'   _   '-. |__|
-                       /     |_|     \|  |
-                      /               \  |
-                     /|     _____     |\ |
-                      |    |==|==|    |  |
-  |---|---|---|---|---|    |--|--|    |  |
-  |---|---|---|---|---|    |==|==|    |  |
-  ^^^^^^^^^^^^Beginning Squash Merge^^^^^^^^^^
-EOF
-            echo -e "${NC}"
-            break 
-            ;;
-        [Ee]* )
-            TMPFILE=$(mktemp)
-            echo "$CONV_COMMIT" > "$TMPFILE"
-            ${EDITOR:-nano} "$TMPFILE"
-            CONV_COMMIT=$(cat "$TMPFILE")
-            rm "$TMPFILE"
-            ;;
-        [Cc]* )
-            echo -e "${YELLOW}Operation cancelled.${NC}"
-            exit 0
-            ;;
-        * )
-            echo -e "${RED}Invalid choice. Please enter 'A' to accept, 'E' to edit, or 'C' to cancel.${NC}"
-            ;;
-    esac
-done
 
 # Perform the squash merge
 squashMergePR "$PR_NUMBER" "$CONV_COMMIT" "$REPO"
