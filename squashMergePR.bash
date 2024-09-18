@@ -180,8 +180,13 @@ squashMergePR() {
     local commit_message=$2
     local repo=$3
 
+    # Extract the first line as the title
+    local title=$(echo "$commit_message" | head -n 1)
+    # Extract the rest as the body
+    local body=$(echo "$commit_message" | tail -n +2)
+
     echo -e "${BLUE}Attempting to merge PR #$pr_number into $repo...${NC}"
-    if gh pr merge "$pr_number" --repo "$repo" -s -t "$commit_message" -b "$DESCRIPTION $BREAKING_CHANGE_DESCRIPTION"; then
+    if gh pr merge "$pr_number" --repo "$repo" -s -t "$title" -b "$body"; then
         echo -e "${GREEN}Successfully merged PR #$pr_number into $repo.${NC}"
         return 0
     else
