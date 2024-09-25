@@ -4,7 +4,7 @@ GPG_TTY=$(tty)
 export GPG_TTY
 
 # Array of co-authors
-coauthors=("chermsit@dickinson.edu" "braught@dickinson.edu" "jmac@dickinson.edu" "goblew@dickinson.edu" "ferlandm@dickinson.edu")
+coauthors=("braught@dickinson.edu" "jmac@dickinson.edu" "goblew@dickinson.edu" "ferlandm@dickinson.edu", "kimbo@dickinson.edu")
 
 # Function to get a random co-author
 get_random_coauthor() {
