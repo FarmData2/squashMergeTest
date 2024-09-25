@@ -120,45 +120,33 @@ convertToConventionalCommit() {
     local co_authors=$6
     local commit_message=""
 
-    # Construct the commit message without duplicates
-    if [[ -n "$type" ]]; then
-        commit_message="${type}"
-    fi
-
+    # Construct the first line of the commit message
+    commit_message="${type}"
     if [[ "$scope" != "none" && -n "$scope" ]]; then
         commit_message="${commit_message}(${scope})"
     fi
+    commit_message="${commit_message}: ${title}"  # Use the title from the PR
 
-    if [[ -n "$title" ]]; then
-        commit_message="${commit_message}: ${title}"
-    fi
-
-    # Add body (PR description) only if it's not empty
+    # Add body if not empty
     if [[ -n "$body" ]]; then
         commit_message="${commit_message}
 
 ${body}"
     fi
 
-    # Add breaking changes only if they are not empty
+    # Add breaking changes if they exist
     if [[ -n "$breaking_changes" ]]; then
         commit_message="${commit_message}
 
-${breaking_changes}"
+BREAKING CHANGE: ${breaking_changes}"  # Ensure proper formatting
     fi
 
-    # Add co-authors only if they are not empty
+    # Add co-authors if they exist
     if [[ -n "$co_authors" ]]; then
         commit_message="${commit_message}
 
-${co_authors}"
+${co_authors}"  # Ensure proper formatting
     fi
-
-    # Remove any duplicate lines
-    commit_message=$(echo "$commit_message" | awk '!seen[$0]++')
-
-    # Ensure that the type and scope are not duplicated
-    commit_message=$(echo "$commit_message" | sed -E 's/(^.*\s+)(\1)+/\1/g')
 
     echo "$commit_message"
 }
@@ -244,6 +232,7 @@ parsePrTitle() {
     fi
     echo "$type|$scope|$description"
 }
+
 # Function to parse PR Body
 parsePrBody() {
     local pr_body="$1"
@@ -278,8 +267,18 @@ parsePrBody() {
     breaking_changes=$(echo -e "$breaking_changes" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
     co_authors=$(echo -e "$co_authors" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
 
-    echo -e "$breaking_changes|$co_authors|$body"
+    # Amalgamate breaking changes and co-authors
+    if [[ -n "$breaking_changes" ]]; then
+        body+="\n\n$breaking_changes"
+    fi
+    if [[ -n "$co_authors" ]]; then
+        body+="\n\n$co_authors"
+    fi
+
+    # Return the modified body
+    echo "$body"
 }
+
 
 # Function to check PR title components
 checkPrTitleComponents() {
@@ -306,6 +305,7 @@ checkPrTitleComponents() {
 
     echo "$result"
 }
+
 # Function to prepare PR details
 prepPrDetails() {
     local valid_pr_found=false
@@ -336,7 +336,7 @@ prepPrDetails() {
 
             # Parse PR title and body
             IFS='|' read -r PARSED_TYPE PARSED_SCOPE PARSED_DESCRIPTION <<< "$(parsePrTitle "$PR_TITLE")"
-            IFS='|' read -r PARSED_BREAKING_CHANGES PARSED_CO_AUTHORS PARSED_BODY <<< "$(parsePrBody "$PR_BODY")"
+            PARSED_BODY="$(parsePrBody "$PR_BODY")"
 
             # Check PR title components
             TITLE_CHECK_RESULT=$(checkPrTitleComponents "$PARSED_TYPE" "$PARSED_SCOPE" "$PARSED_DESCRIPTION")
@@ -401,82 +401,22 @@ prepPrDetails() {
     done
 
     # Use parsed values or prompt for missing/invalid parts
-    if [ -z "$TYPE" ]; then
-        if elementInArray "$PARSED_TYPE" "${VALID_TYPES[@]}"; then
-            TYPE="$PARSED_TYPE"
-            echo -e "${GREEN}Using type '$TYPE' from PR title.${NC}"
-        else
-            echo -e "${YELLOW}Invalid or missing type in PR title.${NC}"
-            promptForValue "Please enter a valid commit type" "${PARSED_TYPE:-feat}" VALID_TYPES[@] TYPE
-        fi
-    fi
-
-    if [ -z "$SCOPE" ]; then
-        if [ "$PARSED_SCOPE" == "none" ] || elementInArray "$PARSED_SCOPE" "${VALID_SCOPES[@]}"; then
-            SCOPE="$PARSED_SCOPE"
-            echo -e "${GREEN}Using scope '$SCOPE' from PR title.${NC}"
-        elif [ -z "$PARSED_SCOPE" ]; then
-            echo -e "${YELLOW}Missing scope in PR title.${NC}"
-            promptForValue "Enter commit scope" "none" VALID_SCOPES[@] SCOPE
-        else
-            echo -e "${YELLOW}Invalid scope '$PARSED_SCOPE' in PR title.${NC}"
-            promptForValue "Enter a valid commit scope" "none" VALID_SCOPES[@] SCOPE
-        fi
-    fi
-
-    if [ -z "$DESCRIPTION" ]; then
-        if [ -n "$PARSED_DESCRIPTION" ]; then
-            DESCRIPTION="$PARSED_DESCRIPTION"
-            echo -e "${GREEN}Using description '$DESCRIPTION' from PR title.${NC}"
-        else
-            echo -e "${YELLOW}Missing description in PR title.${NC}"
-            read -p "Enter commit description: " DESCRIPTION
-            if [ -z "$DESCRIPTION" ]; then
-                echo -e "${RED}Error: Commit description cannot be empty.${NC}"
-                exit 1
-            fi
-        fi
-    fi
+    TYPE="${TYPE:-$PARSED_TYPE}"
+    SCOPE="${SCOPE:-$PARSED_SCOPE}"
+    DESCRIPTION="${DESCRIPTION:-$PARSED_DESCRIPTION}"
 
     # Handle breaking changes
     if [ -z "$BREAKING_CHANGE" ]; then
-        if [ "$PARSED_BREAKING_CHANGE" == "yes" ]; then
-            BREAKING_CHANGE="yes"
-            echo -e "${YELLOW}Breaking change detected in PR body.${NC}"
-        else
-            read -p "Is this a breaking change? (yes/no): " BREAKING_CHANGE
-        fi
+        BREAKING_CHANGE_DESCRIPTION="$PARSED_BREAKING_CHANGES"
     fi
 
-    # Normalize BREAKING_CHANGE value
-    case "$BREAKING_CHANGE" in
-        yes|y) BREAKING_CHANGE="yes" ;;
-        no|n|*) BREAKING_CHANGE="no" ;;
-    esac
-
-    if [ "$BREAKING_CHANGE" == "yes" ]; then
-        if [ -z "$BREAKING_CHANGE_DESCRIPTION" ]; then
-            if [ -n "$PARSED_BREAKING_CHANGE_DESCRIPTION" ]; then
-                BREAKING_CHANGE_DESCRIPTION="$PARSED_BREAKING_CHANGE_DESCRIPTION"
-                echo -e "${GREEN}Using breaking change description from PR body.${NC}"
-            else
-                read -p "Enter breaking change description: " BREAKING_CHANGE_DESCRIPTION
-            fi
-        fi
+    # Handle co-authors
+    if [ -z "$PARSED_CO_AUTHORS" ]; then
+        CO_AUTHORS="$PARSED_CO_AUTHORS"
     fi
 
-    # Handle PR body
-    if [ -z "$PR_BODY" ]; then
-        if [ -n "$PARSED_BODY" ]; then
-            PR_BODY="$PARSED_BODY"
-            echo -e "${GREEN}Using body from PR description.${NC}"
-        else
-            read -p "Enter PR body (optional): " PR_BODY
-        fi
-    fi
-
-    # Generate the initial conventional commit message
-    CONV_COMMIT=$(convertToConventionalCommit "$TYPE" "$SCOPE" "$PR_TITLE" "$PR_BODY" "$PARSED_BREAKING_CHANGES" "$PARSED_CO_AUTHORS")
+    # Generate the conventional commit message
+    CONV_COMMIT=$(convertToConventionalCommit "$TYPE" "$SCOPE" "$PR_TITLE" "$PARSED_BODY")
 
     # Review, edit, or cancel the commit message
     while true; do
