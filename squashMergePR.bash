@@ -114,7 +114,6 @@ promptForValue() {
 extractCommitInfo() {
     local pr_number="$1"
     local breaking_changes=()
-    local co_authors=()
 
     # Fetch all commit SHAs for the PR
     local commit_shas=$(gh pr view $pr_number --json commits --jq '.commits[].oid')
@@ -131,15 +130,9 @@ extractCommitInfo() {
             fi
         done < <(echo "$commit_message")
         
-        # Extract co-authors
-        while IFS= read -r line; do
-            if [[ "$line" =~ ^Co-authored-by:(.*)$ ]]; then
-                co_authors+=("${BASH_REMATCH[1]}")
-            fi
-        done < <(echo "$commit_message")
     done <<< "$commit_shas"
 
-    # Remove duplicates and join arrays into strings
+    # Remove duplicates and join breaking changes into a string
     breaking_changes=$(printf "%s\n" "${breaking_changes[@]}" | sort -u | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
 
     # Return processed data
@@ -276,7 +269,6 @@ parsePrTitle() {
 parsePrBody() {
     local pr_body="$1"
     local breaking_changes="$2"
-    local co_authors="$3"
     local body=""
 
     # Use the entire PR body as the commit description
@@ -284,12 +276,10 @@ parsePrBody() {
 
     # Append breaking changes if they exist
     if [[ -n "$breaking_changes" ]]; then
-        body+="\n\nBREAKING CHANGE: $breaking_changes"
-    fi
-
-    # Append co-authors if they exist
-    if [[ -n "$co_authors" ]]; then
-        body+="\n\n$co_authors"
+        IFS=$'\n' read -rd '' -a bc_array <<< "$breaking_changes"
+        for change in "${bc_array[@]}"; do
+            body+="\n\nBREAKING CHANGE: $change"
+        done
     fi
 
     # Trim leading/trailing whitespace
@@ -426,13 +416,13 @@ prepPrDetails() {
     done
 
     # Extract commit info 
-    IFS='|' read -r BREAKING_CHANGES CO_AUTHORS <<< "$(extractCommitInfo "$PR_NUMBER")"
+    BREAKING_CHANGES=$(extractCommitInfo "$PR_NUMBER")
     # Construct the new title with inline replacements
     NEW_TITLE="$PARSED_DESCRIPTION"
 
     # Parse PR body with additional info
-    PARSED_BODY="$(parsePrBody "$PR_BODY" "$BREAKING_CHANGES" "$CO_AUTHORS")"
-    echo "PARSED_BODY: $(extractCommitInfo "$PR_NUMBER")"
+    PARSED_BODY="$(parsePrBody "$PR_BODY" "$BREAKING_CHANGES")"
+   
     # Generate the conventional commit message
     CONV_COMMIT=$(convertToConventionalCommit "$PARSED_TYPE" "$PARSED_SCOPE" "$NEW_TITLE" "$PARSED_BODY")
 
