@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# You know, I read the issue, saw the comment about avoiding merge conflicts, rushed in, had merge conflicts, fair play.
+
 GPG_TTY=$(tty)
 export GPG_TTY
 
