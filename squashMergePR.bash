@@ -110,32 +110,40 @@ promptForValue() {
     done
 }
 
-# Function to extract breaking changes and co-authors from PR commits
 extractCommitInfo() {
-    local pr_number=$1
-    local breaking_changes=""
-    local co_authors=""
+    local pr_number="$1"
+    local breaking_changes=()
+    local co_authors=()
 
-    # Get all commits for the PR
-    local commits=$(gh pr view $pr_number --json commits --jq '.commits[].messageHeadline')
+    # Fetch all commit SHAs for the PR
+    local commit_shas=$(gh pr view $pr_number --json commits --jq '.commits[].oid')
 
-    while IFS= read -r commit; do
+    # Iterate through each commit SHA
+    while read -r sha; do
+        # Fetch full commit message
+        local commit_message=$(gh api repos/:owner/:repo/commits/$sha --jq '.commit.message')
+        
         # Extract breaking changes
-        if [[ "$commit" =~ BREAKING\ CHANGE:\ (.+) ]]; then
-            breaking_changes+="${BASH_REMATCH[1]}\n"
-        fi
-
+        while IFS= read -r line; do
+            if [[ "$line" =~ ^BREAKING[[:space:]]CHANGE:(.*)$ ]]; then
+                breaking_changes+=("${BASH_REMATCH[1]}")
+            fi
+        done < <(echo "$commit_message")
+        
         # Extract co-authors
-        if [[ "$commit" =~ Co-authored-by:\ (.+) ]]; then
-            co_authors+="${BASH_REMATCH[0]}\n"
-        fi
-    done <<< "$commits"
+        while IFS= read -r line; do
+            if [[ "$line" =~ ^Co-authored-by:(.*)$ ]]; then
+                co_authors+=("${BASH_REMATCH[1]}")
+            fi
+        done < <(echo "$commit_message")
+    done <<< "$commit_shas"
 
-    # Remove duplicates and trailing newlines
-    breaking_changes=$(echo -e "$breaking_changes" | sort -u | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-    co_authors=$(echo -e "$co_authors" | sort -u | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+    # Remove duplicates and join arrays into strings
+    breaking_changes=$(printf "%s\n" "${breaking_changes[@]}" | sort -u | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+    co_authors=$(printf "%s\n" "${co_authors[@]}" | sort -u | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
 
-    echo "$breaking_changes|$co_authors"
+    # Return processed data
+    echo "$breaking_changes\n\n$co_authors"
 }
 
 
@@ -154,7 +162,7 @@ convertToConventionalCommit() {
     if [[ "$scope" != "none" && -n "$scope" ]]; then
         commit_message="${commit_message}(${scope})"
     fi
-    commit_message="${commit_message}: ${title}"  # Use the title from the PR
+    commit_message="${commit_message}: ${title}"
 
     # Add body if not empty
     if [[ -n "$body" ]]; then
@@ -165,16 +173,19 @@ ${body}"
 
     # Add breaking changes if they exist
     if [[ -n "$breaking_changes" ]]; then
-        commit_message="${commit_message}
+        IFS=$'\n' read -rd '' -a bc_array <<< "$breaking_changes"
+        for change in "${bc_array[@]}"; do
+            commit_message="${commit_message}
 
-BREAKING CHANGE: ${breaking_changes}"  # Ensure proper formatting
+BREAKING CHANGE: ${change}"
+        done
     fi
 
     # Add co-authors if they exist
     if [[ -n "$co_authors" ]]; then
         commit_message="${commit_message}
 
-${co_authors}"  # Ensure proper formatting
+${co_authors}"
     fi
 
     echo "$commit_message"
@@ -414,12 +425,14 @@ prepPrDetails() {
         fi
     done
 
+    # Extract commit info 
+    IFS='|' read -r BREAKING_CHANGES CO_AUTHORS <<< "$(extractCommitInfo "$PR_NUMBER")"
     # Construct the new title with inline replacements
     NEW_TITLE="$PARSED_DESCRIPTION"
 
     # Parse PR body with additional info
     PARSED_BODY="$(parsePrBody "$PR_BODY" "$BREAKING_CHANGES" "$CO_AUTHORS")"
-
+    echo "PARSED_BODY: $(extractCommitInfo "$PR_NUMBER")"
     # Generate the conventional commit message
     CONV_COMMIT=$(convertToConventionalCommit "$PARSED_TYPE" "$PARSED_SCOPE" "$NEW_TITLE" "$PARSED_BODY")
 
