@@ -46,7 +46,7 @@ create_pr() {
     # Fifth commit with breaking change
     echo "Fifth test change for: $title" >> "test_case_${test_case}/testfile.txt"
     git add "test_case_${test_case}"
-    git commit -m "Fifth commit for: $title" -m "BREAKING CHANGE: This commit introduces yet another breaking change."
+    git commit -m "Fifth commit for: $title" -m "BREAKING CHANGE: This commit introduces yet another breaking change. I just want to make sure it handles multiline breaks!"
    
     git push -u origin "$branch_name"
    
