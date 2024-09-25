@@ -57,4 +57,5 @@ create_pr() {
 
 # Single test case
 create_pr "1" "feat(docs): add new documentation" "This PR adds new documentation."
+git switch main
 echo "Test PR has been created."

@@ -80,4 +80,7 @@ create_pr "9" "feat(docs): add very long description that exceeds the usual leng
 
 create_pr "10" "feat(docs): add special characters (!@#$%^&*())" "This PR has special characters in the description."
 
+
+
+git switch main
 echo "All test PRs have been created."
