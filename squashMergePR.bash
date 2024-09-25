@@ -110,6 +110,35 @@ promptForValue() {
     done
 }
 
+# Function to extract breaking changes and co-authors from PR commits
+extractCommitInfo() {
+    local pr_number=$1
+    local breaking_changes=""
+    local co_authors=""
+
+    # Get all commits for the PR
+    local commits=$(gh pr view $pr_number --json commits --jq '.commits[].messageHeadline')
+
+    while IFS= read -r commit; do
+        # Extract breaking changes
+        if [[ "$commit" =~ BREAKING\ CHANGE:\ (.+) ]]; then
+            breaking_changes+="${BASH_REMATCH[1]}\n"
+        fi
+
+        # Extract co-authors
+        if [[ "$commit" =~ Co-authored-by:\ (.+) ]]; then
+            co_authors+="${BASH_REMATCH[0]}\n"
+        fi
+    done <<< "$commits"
+
+    # Remove duplicates and trailing newlines
+    breaking_changes=$(echo -e "$breaking_changes" | sort -u | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+    co_authors=$(echo -e "$co_authors" | sort -u | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+
+    echo "$breaking_changes|$co_authors"
+}
+
+
 # Function to convert PR title to conventional commit format
 convertToConventionalCommit() {
     local type=$1
@@ -233,49 +262,28 @@ parsePrTitle() {
     echo "$type|$scope|$description"
 }
 
-# Function to parse PR Body
 parsePrBody() {
     local pr_body="$1"
-    local breaking_changes=""
-    local co_authors=""
+    local breaking_changes="$2"
+    local co_authors="$3"
     local body=""
-    local in_breaking_change=false
-    local in_co_authors=false
 
-    while IFS= read -r line; do
-        if [[ "$line" =~ ^BREAKING\ CHANGE:\ (.+)$ ]]; then
-            breaking_changes+="${line}\n"
-            in_breaking_change=true
-            in_co_authors=false
-        elif [[ "$line" =~ ^Co-authored-by:\ (.+)$ ]]; then
-            co_authors+="${line}\n"
-            in_breaking_change=false
-            in_co_authors=true
-        elif [[ -z "$line" && "$in_breaking_change" == true ]]; then
-            breaking_changes+="${line}\n"
-        elif [[ -z "$line" && "$in_co_authors" == true ]]; then
-            co_authors+="${line}\n"
-        else
-            body+="${line}\n"
-            in_breaking_change=false
-            in_co_authors=false
-        fi
-    done <<< "$pr_body"
+    # Use the entire PR body as the commit description
+    body="$pr_body"
 
-    # Trim leading/trailing whitespace
-    body=$(echo -e "$body" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-    breaking_changes=$(echo -e "$breaking_changes" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-    co_authors=$(echo -e "$co_authors" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-
-    # Amalgamate breaking changes and co-authors
+    # Append breaking changes if they exist
     if [[ -n "$breaking_changes" ]]; then
-        body+="\n\n$breaking_changes"
+        body+="\n\nBREAKING CHANGE: $breaking_changes"
     fi
+
+    # Append co-authors if they exist
     if [[ -n "$co_authors" ]]; then
         body+="\n\n$co_authors"
     fi
 
-    # Return the modified body
+    # Trim leading/trailing whitespace
+    body=$(echo -e "$body" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+
     echo "$body"
 }
 
@@ -306,7 +314,6 @@ checkPrTitleComponents() {
     echo "$result"
 }
 
-# Function to prepare PR details
 prepPrDetails() {
     local valid_pr_found=false
 
@@ -315,7 +322,7 @@ prepPrDetails() {
         if [ -z "$PR_NUMBER" ]; then
             read -p "Enter the Pull Request (PR) number: " PR_NUMBER
         fi
-
+        
         if [ -z "$PR_NUMBER" ]; then
             echo -e "${RED}Error: PR number cannot be empty.${NC}"
             PR_NUMBER=""
@@ -334,9 +341,11 @@ prepPrDetails() {
             PR_CHANGED_FILES=$(echo "$PR_DETAILS" | jq -r '.changedFiles')
             PR_MERGE_STATE_STATUS=$(echo "$PR_DETAILS" | jq -r '.mergeStateStatus')
 
-            # Parse PR title and body
+            # Parse PR title
             IFS='|' read -r PARSED_TYPE PARSED_SCOPE PARSED_DESCRIPTION <<< "$(parsePrTitle "$PR_TITLE")"
-            PARSED_BODY="$(parsePrBody "$PR_BODY")"
+
+            # Extract commit info
+            IFS='|' read -r BREAKING_CHANGES CO_AUTHORS <<< "$(extractCommitInfo "$PR_NUMBER")"
 
             # Check PR title components
             TITLE_CHECK_RESULT=$(checkPrTitleComponents "$PARSED_TYPE" "$PARSED_SCOPE" "$PARSED_DESCRIPTION")
@@ -356,12 +365,15 @@ prepPrDetails() {
                     echo -e "${RED}Missing components:${NC}"
                     if [[ $TITLE_CHECK_RESULT == *"Missing: type"* ]]; then
                         echo -e "  - Type (e.g., feat, fix, docs)"
+                        promptForValue "Please enter a valid type" "feat" VALID_TYPES[@] PARSED_TYPE
                     fi
                     if [[ $TITLE_CHECK_RESULT == *"Missing: scope"* ]]; then
                         echo -e "  - Scope (e.g., dev, comp, lib)"
+                        promptForValue "Please enter a valid scope" "none" VALID_SCOPES[@] PARSED_SCOPE
                     fi
                     if [[ $TITLE_CHECK_RESULT == *"Missing: description"* ]]; then
                         echo -e "  - Description"
+                        read -p "Please enter a description: " PARSED_DESCRIPTION
                     fi
                 fi
                 if [[ $TITLE_CHECK_RESULT == *"Invalid:"* ]]; then
@@ -369,10 +381,12 @@ prepPrDetails() {
                     if [[ $TITLE_CHECK_RESULT == *"Invalid: type"* ]]; then
                         echo -e "  - Type: '$PARSED_TYPE' is not a valid type"
                         echo -e "    Valid types are: ${VALID_TYPES[*]}"
+                        promptForValue "Please enter a valid type" "$PARSED_TYPE" VALID_TYPES[@] PARSED_TYPE
                     fi
                     if [[ $TITLE_CHECK_RESULT == *"Invalid: scope"* ]]; then
                         echo -e "  - Scope: '$PARSED_SCOPE' is not a valid scope"
                         echo -e "    Valid scopes are: ${VALID_SCOPES[*]}"
+                        promptForValue "Please enter a valid scope" "$PARSED_SCOPE" VALID_SCOPES[@] PARSED_SCOPE
                     fi
                 fi
                 echo -e "${YELLOW}Please consider updating your PR title to follow the conventional commit format:${NC}"
@@ -400,23 +414,14 @@ prepPrDetails() {
         fi
     done
 
-    # Use parsed values or prompt for missing/invalid parts
-    TYPE="${TYPE:-$PARSED_TYPE}"
-    SCOPE="${SCOPE:-$PARSED_SCOPE}"
-    DESCRIPTION="${DESCRIPTION:-$PARSED_DESCRIPTION}"
+    # Construct the new title with inline replacements
+    NEW_TITLE="$PARSED_DESCRIPTION"
 
-    # Handle breaking changes
-    if [ -z "$BREAKING_CHANGE" ]; then
-        BREAKING_CHANGE_DESCRIPTION="$PARSED_BREAKING_CHANGES"
-    fi
-
-    # Handle co-authors
-    if [ -z "$PARSED_CO_AUTHORS" ]; then
-        CO_AUTHORS="$PARSED_CO_AUTHORS"
-    fi
+    # Parse PR body with additional info
+    PARSED_BODY="$(parsePrBody "$PR_BODY" "$BREAKING_CHANGES" "$CO_AUTHORS")"
 
     # Generate the conventional commit message
-    CONV_COMMIT=$(convertToConventionalCommit "$TYPE" "$SCOPE" "$PR_TITLE" "$PARSED_BODY")
+    CONV_COMMIT=$(convertToConventionalCommit "$PARSED_TYPE" "$PARSED_SCOPE" "$NEW_TITLE" "$PARSED_BODY")
 
     # Review, edit, or cancel the commit message
     while true; do
@@ -426,20 +431,7 @@ prepPrDetails() {
 
         case $choice in
             [Aa]* )
-                echo -e "${GREEN}"
-                cat << "EOF"
-                            +&-
-                           _.-^-._    .--.
-                        .-'   _   '-. |__|
-                       /     |_|     \|  |
-                      /               \  |
-                     /|     _____     |\ |
-                      |    |==|==|    |  |
-  |---|---|---|---|---|    |--|--|    |  |
-  |---|---|---|---|---|    |==|==|    |  |
-  ^^^^^^^^^^^^Beginning Squash Merge^^^^^^^^^^
-EOF
-                echo -e "${NC}"
+                echo -e "${GREEN}Proceeding with squash merge...${NC}"
                 break 
                 ;;
             [Ee]* )
@@ -459,6 +451,7 @@ EOF
         esac
     done
 }
+
 
 # Main script execution
 checkDependencies
