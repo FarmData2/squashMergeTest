@@ -110,6 +110,7 @@ promptForValue() {
     done
 }
 
+# Function to extract breaking changes and co-authors from PR. Turns out that you just need to look at breaking changes. 
 extractCommitInfo() {
     local pr_number="$1"
     local breaking_changes=()
@@ -140,10 +141,9 @@ extractCommitInfo() {
 
     # Remove duplicates and join arrays into strings
     breaking_changes=$(printf "%s\n" "${breaking_changes[@]}" | sort -u | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-    co_authors=$(printf "%s\n" "${co_authors[@]}" | sort -u | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
 
     # Return processed data
-    echo "$breaking_changes\n\n$co_authors"
+    echo "$breaking_changes"
 }
 
 
