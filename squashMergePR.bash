@@ -120,15 +120,19 @@ extractCommitInfo() {
     local current_breaking_change=""
     local in_breaking_change=false
     local co_authors=()
+
     # Fetch all commit SHAs for the PR
     local commit_shas=$(gh pr view "$pr_number" --json commits --jq '.commits[].oid')
+
     # Iterate through each commit SHA
     while read -r sha; do
         # Fetch full commit message
         local commit_message=$(gh api "repos/:owner/:repo/commits/$sha" --jq '.commit.message')
+
         # Reset breaking change flag for each commit
         in_breaking_change=false
         current_breaking_change=""
+
         # Process each line of the commit message
         while IFS= read -r line; do
             if [[ "$line" =~ ^BREAKING[[:space:]]CHANGE:(.*)$ ]]; then
@@ -136,7 +140,7 @@ extractCommitInfo() {
                 current_breaking_change="${BASH_REMATCH[1]}"
                 in_breaking_change=true
             elif [ "$in_breaking_change" = true ] && [[ "$line" =~ ^[[:space:]](.*)$ ]]; then
-                # Continuation of a breaking change
+                # Continuation of a breaking change, append with proper space
                 current_breaking_change+=" ${BASH_REMATCH[1]}"
             elif [[ "$line" =~ ^Co-authored-by:(.*)$ ]]; then
                 # Collect co-authors, removing commas from emails
@@ -144,17 +148,21 @@ extractCommitInfo() {
                 co_authors+=("$co_author_entry")
                 in_breaking_change=false
             else
-                # If we were in a breaking change, finalize it and add to the output
+                # Finalize the breaking change and append to output
                 if [ "$in_breaking_change" = true ]; then
-                    formatted_output+="BREAKING CHANGE: ${current_breaking_change// }"$'\n'
+                    # Add spaces between the words in the breaking change
+                    current_breaking_change=$(echo "$current_breaking_change" | sed -E 's/([a-z])([A-Z])/\1 \2/g')
+                    formatted_output+="BREAKING CHANGE: ${current_breaking_change}"$'\n'
                     in_breaking_change=false
                     current_breaking_change=""
                 fi
             fi
         done < <(echo "$commit_message")
-        # Add any remaining breaking change from this commit
+
+        # Append any remaining breaking change from this commit
         if [ "$in_breaking_change" = true ]; then
-            formatted_output+="BREAKING CHANGE: ${current_breaking_change// }"$'\n'
+            current_breaking_change=$(echo "$current_breaking_change" | sed -E 's/([a-z])([A-Z])/\1 \2/g')
+            formatted_output+="BREAKING CHANGE: ${current_breaking_change}"$'\n'
         fi
     done <<< "$commit_shas"
 
@@ -163,36 +171,32 @@ extractCommitInfo() {
     for author in "${co_authors[@]}"; do
         local author_name=$(echo "$author" | sed -E 's/^[[:space:]]*([^<]+)<.*$/\1/' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
         local author_email=$(echo "$author" | grep -oP '<\K[^>]+')
-        
+
         if [[ -n "$author_email" ]]; then
             # Split name into parts
             read -ra name_parts <<< "$author_name"
             if [[ ${#name_parts[@]} -gt 1 ]]; then
-                # If there's more than one part, use first and last
                 formatted_author="Co-Authored-By: ${name_parts[0]} ${name_parts[-1]} <$author_email>"
             else
-                # If only one part or empty, use "Co Author"
                 formatted_author="Co-Authored-By: Co Author <$author_email>"
             fi
-            # Use email as key to ensure uniqueness
             unique_co_authors["$author_email"]="$formatted_author"
         fi
     done
 
-    # If there are breaking changes, add a space before co-authors
-    if [[ -n "$formatted_output" && ${#unique_co_authors[@]} -ne 0 ]]; then
-        formatted_output+=$'\n'
-    fi
-
-    # Add unique co-authors to output
+    # Append co-authors to the output
     for author in "${unique_co_authors[@]}"; do
         formatted_output+="$author"$'\n'
     done
 
-    # Trim trailing newlines
+    # Remove trailing newlines
     formatted_output=$(echo "$formatted_output" | sed -e 's/[[:space:]]*$//')
     echo "$formatted_output"
 }
+
+
+
+
 
 
 # Function to convert PR title to conventional commit format
