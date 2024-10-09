@@ -1,1 +1,2 @@
 Initial test change for: feat(docs): add special characters (!@#$%^&*())
+Second test change for: feat(docs): add special characters (!@#$%^&*())
