@@ -1,1 +1,2 @@
 Initial test change for: add new feature
+Second test change for: add new feature
