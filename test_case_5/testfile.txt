@@ -1,1 +1,2 @@
 Initial test change for: feat: add new feature without scope
+Second test change for: feat: add new feature without scope
