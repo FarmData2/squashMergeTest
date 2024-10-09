@@ -1,3 +1,4 @@
 Initial test change for: feat(docs): add special characters (!@#$%^&*())
 Second test change for: feat(docs): add special characters (!@#$%^&*())
 Third test change for: feat(docs): add special characters (!@#$%^&*())
+Fourth test change for: feat(docs): add special characters (!@#$%^&*())
