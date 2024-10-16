@@ -176,9 +176,9 @@ extractCommitInfo() {
             # Split name into parts
             read -ra name_parts <<< "$author_name"
             if [[ ${#name_parts[@]} -gt 1 ]]; then
-                formatted_author="Co-Authored-By: ${name_parts[0]} ${name_parts[-1]} <$author_email>"
+                formatted_author="Co-authored-by: ${name_parts[0]} ${name_parts[-1]} <$author_email>"
             else
-                formatted_author="Co-Authored-By: Co Author <$author_email>"
+                formatted_author="Co-authored-by: Co Author <$author_email>"
             fi
             unique_co_authors["$author_email"]="$formatted_author"
         fi
