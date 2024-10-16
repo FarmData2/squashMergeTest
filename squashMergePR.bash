@@ -116,9 +116,7 @@ promptForValue() {
 # Function to extract breaking changes and co-authors from PR. Turns out that you just need to look at breaking changes. 
 extractCommitInfo() {
     local pr_number="$1"
-    local formatted_output=""
-    local current_breaking_change=""
-    local in_breaking_change=false
+    local breaking_changes=""
     local co_authors=()
 
     # Fetch all commit SHAs for the PR
@@ -129,77 +127,52 @@ extractCommitInfo() {
         # Fetch full commit message
         local commit_message=$(gh api "repos/:owner/:repo/commits/$sha" --jq '.commit.message')
 
-        # Reset breaking change flag for each commit
-        in_breaking_change=false
-        current_breaking_change=""
-
         # Process each line of the commit message
         while IFS= read -r line; do
             if [[ "$line" =~ ^BREAKING[[:space:]]CHANGE:(.*)$ ]]; then
-                # Start collecting the breaking change
-                current_breaking_change="${BASH_REMATCH[1]}"
-                in_breaking_change=true
-            elif [ "$in_breaking_change" = true ] && [[ "$line" =~ ^[[:space:]](.*)$ ]]; then
-                # Continuation of a breaking change, append with proper space
-                current_breaking_change+=" ${BASH_REMATCH[1]}"
+                # Append breaking change with proper newline separation
+                breaking_changes+="BREAKING CHANGE:${BASH_REMATCH[1]}"$'\n'
+            elif [[ "$line" =~ ^[[:space:]](.*)$ ]] && [[ -n "$breaking_changes" ]]; then
+                # Append multiline description to the last breaking change
+                breaking_changes+=" ${BASH_REMATCH[1]}"$'\n'
             elif [[ "$line" =~ ^Co-authored-by:(.*)$ ]]; then
                 # Collect co-authors, removing commas from emails
                 local co_author_entry=$(echo "${BASH_REMATCH[1]}" | sed 's/,//g')
                 co_authors+=("$co_author_entry")
-                in_breaking_change=false
-            else
-                # Finalize the breaking change and append to output
-                if [ "$in_breaking_change" = true ]; then
-                    # Add spaces between the words in the breaking change
-                    current_breaking_change=$(echo "$current_breaking_change" | sed -E 's/([a-z])([A-Z])/\1 \2/g')
-                    formatted_output+="BREAKING CHANGE: ${current_breaking_change}"$'\n'
-                    in_breaking_change=false
-                    current_breaking_change=""
-                fi
             fi
         done < <(echo "$commit_message")
-
-        # Append any remaining breaking change from this commit
-        if [ "$in_breaking_change" = true ]; then
-            current_breaking_change=$(echo "$current_breaking_change" | sed -E 's/([a-z])([A-Z])/\1 \2/g')
-            formatted_output+="BREAKING CHANGE: ${current_breaking_change}"$'\n'
-        fi
     done <<< "$commit_shas"
 
     # Process co-authors
     declare -A unique_co_authors
     for author in "${co_authors[@]}"; do
-        local author_name=$(echo "$author" | sed -E 's/^[[:space:]]*([^<]+)<.*$/\1/' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
         local author_email=$(echo "$author" | grep -oP '<\K[^>]+')
-
         if [[ -n "$author_email" ]]; then
-            # Split name into parts
-            read -ra name_parts <<< "$author_name"
-            if [[ ${#name_parts[@]} -gt 1 ]]; then
-                formatted_author="Co-Authored-By: ${name_parts[0]} ${name_parts[-1]} <$author_email>"
-            else
-                formatted_author="Co-Authored-By: Co Author <$author_email>"
-            fi
+            local username=$(echo "$author_email" | cut -d@ -f1)
+            formatted_author="Co-authored-by: $username <$author_email>"
             unique_co_authors["$author_email"]="$formatted_author"
         fi
     done
 
-    # Append co-authors to the output
-    for author in "${unique_co_authors[@]}"; do
-        formatted_output+="$author"$'\n'
-    done
+    # Combine breaking changes and co-authors
+    local formatted_output=""
+    if [ -n "$breaking_changes" ]; then
+        formatted_output+="$breaking_changes"
+    fi
+
+    if [ ${#unique_co_authors[@]} -gt 0 ]; then
+        formatted_output+=$'\n'
+        for author in "${unique_co_authors[@]}"; do
+            formatted_output+="$author"$'\n'
+        done
+    fi
 
     # Remove trailing newlines
     formatted_output=$(echo "$formatted_output" | sed -e 's/[[:space:]]*$//')
     echo "$formatted_output"
 }
 
-
-
-
-
-
-# Function to convert PR title to conventional commit format
+# Function to convert to conventional commit. #Work on with braught because I'm at my wits end here.
 convertToConventionalCommit() {
     local type=$1
     local scope=$2
@@ -208,6 +181,8 @@ convertToConventionalCommit() {
     local breaking_changes=$5
     local co_authors=$6
     local commit_message=""
+    local commit_body=""
+    local final_breaking_changes=""
 
     # Construct the first line of the commit message
     commit_message="${type}"
@@ -216,30 +191,47 @@ convertToConventionalCommit() {
     fi
     commit_message="${commit_message}: ${title}"
 
-    # Add body if not empty
+    # Add body if not empty, but remove any "BREAKING CHANGE" lines from the body
     if [[ -n "$body" ]]; then
+        # Extract and store any "BREAKING CHANGE" lines from the body
+        body_breaking_changes=$(echo "$body" | grep -E '^BREAKING CHANGE:.*')
+        # Remove breaking changes from the body
+        body=$(echo "$body" | sed '/^BREAKING CHANGE:/d')
+        commit_body="${body}"
+    fi
+
+    # Build the full commit message: type(scope): title, followed by the body
+    commit_message="${commit_message}"
+
+    # Add body if present
+    if [[ -n "$commit_body" ]]; then
         commit_message="${commit_message}
 
-${body}"
+${commit_body}"
     fi
 
-    # Add breaking changes if they exist
-    if [[ -n "$breaking_changes" ]]; then
-        IFS=$'\n' read -rd '' -a bc_array <<< "$breaking_changes"
-        for change in "${bc_array[@]}"; do
-            commit_message="${commit_message}
+    # Insert breaking changes after the body and before co-authors
+    if [[ -n "$breaking_changes" || -n "$body_breaking_changes" ]]; then
+        final_breaking_changes="${breaking_changes}
+${body_breaking_changes}"
 
-BREAKING CHANGE: ${change}"
-        done
+        # Ensure breaking changes are added after the body
+        commit_message="${commit_message}
+
+${final_breaking_changes}"
     fi
 
-    # Add co-authors if they exist
+    # Append co-authors at the end
     if [[ -n "$co_authors" ]]; then
         commit_message="${commit_message}
 
 ${co_authors}"
     fi
 
+    # Trim multiple newlines to ensure only single newlines between sections
+    commit_message=$(echo -e "$commit_message" | sed -r '/^$/N;/^\n$/D')
+
+    # Return the full commit message
     echo "$commit_message"
 }
 

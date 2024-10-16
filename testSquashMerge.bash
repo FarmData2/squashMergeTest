@@ -7,7 +7,7 @@ GPG_TTY=$(tty)
 export GPG_TTY
 
 # Array of co-authors
-coauthors=("chermsit@dickinson.edu", "braught@dickinson.edu" "jmac@dickinson.edu" "goblew@dickinson.edu" "ferlandm@dickinson.edu" "kimbo@dickinson.edu")
+coauthors=("chermsit@dickinson.edu", "braught@dickinson.edu", "jmac@dickinson.edu", "goblew@dickinson.edu", "ferlandm@dickinson.edu", "kimbo@dickinson.edu")
 
 # Function to get a random co-author
 get_random_coauthor() {
@@ -118,20 +118,27 @@ display_help() {
 # Function to run all test cases
 run_all_tests() {
     local random_coauthors="$1"
-    create_pr "1" "feat(docs): add new documentation" "This PR adds new documentation.
-BREAKING CHANGE: This change breaks the existing API." "$random_coauthors"
-    create_pr "2" "invalid(docs): test invalid type" "This PR has an invalid type." "$random_coauthors"
-    create_pr "3" "feat(invalid): test invalid scope" "This PR has an invalid scope." "$random_coauthors"
-    create_pr "4" "add new feature" "This PR doesn't specify a type." "$random_coauthors"
-    create_pr "5" "feat: add new feature without scope" "This PR doesn't specify a scope." "$random_coauthors"
-    create_pr "6" "feat(docs):" "This PR has no description in the title." "$random_coauthors"
-    create_pr "7" "feat(docs): add breaking change" "This PR adds a breaking change.
-BREAKING CHANGE: This changes the API significantly." "$random_coauthors"
+    create_pr "1" "feat(docs): add new documentation [BREAKING CHANGE]" "This PR adds new documentation.
+BREAKING CHANGE: This change breaks the existing API.
+Co-authored-by: Co-Author <$(get_random_coauthor)>" "$random_coauthors"
+    create_pr "2" "invalid(docs): test invalid type" "This PR has an invalid type. 
+Co-authored-by: Co-Author <$(get_random_coauthor)>" "$random_coauthors"
+    create_pr "3" "feat(invalid): test invalid scope" "This PR has an invalid scope.
+BREAKING CHANGE: API has changed significantly." "$random_coauthors"
+    create_pr "4" "add new feature" "This PR doesn't specify a type.
+Co-authored-by: Co-Author <$(get_random_coauthor)>
+BREAKING CHANGE: New API implemented." "$random_coauthors"
+    create_pr "5" "feat: add new feature without scope" "This PR doesn't specify a scope. BREAKING CHANGE: Feature affects current system architecture." "$random_coauthors"
+    create_pr "6" "feat(docs):" "This PR has no description in the title. BREAKING CHANGE: Unclear documentation impacts compatibility." "$random_coauthors"
+    create_pr "7" "feat(docs): add breaking change" "This PR adds a breaking change. 
+BREAKING CHANGE: This changes the API significantly. Co-authored-by: Co-Author <$(get_random_coauthor)>" "$random_coauthors"
     create_pr "8" "feat(docs): multiple breaking changes" "This PR has multiple breaking changes.
 BREAKING CHANGE: First breaking change.
 BREAKING CHANGE: Second breaking change." "$random_coauthors"
-    create_pr "9" "feat(docs): add very long description that exceeds the usual length of a PR title and might cause issues with parsing or display" "This PR has a very long description in the title." "$random_coauthors"
-    create_pr "10" "feat(docs): add special characters (!@#$%^&*())" "This PR has special characters in the description." "$random_coauthors"
+    create_pr "9" "feat(docs): add very long description [BREAKING CHANGE]" "This PR has a very long description that exceeds the usual length of a PR title.
+BREAKING CHANGE: New feature affects critical infrastructure." "$random_coauthors"
+    create_pr "10" "feat(docs): add special characters (!@#$%^&*()) [BREAKING CHANGE]" "This PR has special characters in the title and body.
+BREAKING CHANGE: Significant UI modifications." "$random_coauthors"
 }
 
 # Function to select and run specific test cases
@@ -153,20 +160,30 @@ select_and_run_tests() {
     
     for case in $selection; do
         case $case in
-            1) create_pr "1" "feat(docs): add new documentation" "This PR adds new documentation.
-BREAKING CHANGE: This change breaks the existing API." "$random_coauthors" ;;
-            2) create_pr "2" "invalid(docs): test invalid type" "This PR has an invalid type." "$random_coauthors" ;;
-            3) create_pr "3" "feat(invalid): test invalid scope" "This PR has an invalid scope." "$random_coauthors" ;;
-            4) create_pr "4" "add new feature" "This PR doesn't specify a type." "$random_coauthors" ;;
-            5) create_pr "5" "feat: add new feature without scope" "This PR doesn't specify a scope." "$random_coauthors" ;;
-            6) create_pr "6" "feat(docs):" "This PR has no description in the title." "$random_coauthors" ;;
+            1) create_pr "1" "feat(docs): add new documentation [BREAKING CHANGE]" "This PR adds new documentation.
+BREAKING CHANGE: This change breaks the existing API.
+Co-authored-by: Co-Author <$(get_random_coauthor)>" "$random_coauthors" ;;
+            2) create_pr "2" "invalid(docs): test invalid type" "This PR has an invalid type.
+Co-authored-by: Co-Author <$(get_random_coauthor)>" "$random_coauthors" ;;
+            3) create_pr "3" "feat(invalid): test invalid scope" "This PR has an invalid scope.
+BREAKING CHANGE: API has changed significantly." "$random_coauthors" ;;
+            4) create_pr "4" "add new feature" "This PR doesn't specify a type.
+Co-authored-by: Co-Author <$(get_random_coauthor)>
+BREAKING CHANGE: New API implemented." "$random_coauthors" ;;
+            5) create_pr "5" "feat: add new feature without scope" "This PR doesn't specify a scope.
+BREAKING CHANGE: Feature affects current system architecture." "$random_coauthors" ;;
+            6) create_pr "6" "feat(docs):" "This PR has no description in the title.
+BREAKING CHANGE: Unclear documentation impacts compatibility." "$random_coauthors" ;;
             7) create_pr "7" "feat(docs): add breaking change" "This PR adds a breaking change.
-BREAKING CHANGE: This changes the API significantly." "$random_coauthors" ;;
+BREAKING CHANGE: This changes the API significantly.
+Co-authored-by: Co-Author <$(get_random_coauthor)>" "$random_coauthors" ;;
             8) create_pr "8" "feat(docs): multiple breaking changes" "This PR has multiple breaking changes.
 BREAKING CHANGE: First breaking change.
 BREAKING CHANGE: Second breaking change." "$random_coauthors" ;;
-            9) create_pr "9" "feat(docs): add very long description that exceeds the usual length of a PR title and might cause issues with parsing or display" "This PR has a very long description in the title." "$random_coauthors" ;;
-            10) create_pr "10" "feat(docs): add special characters (!@#$%^&*())" "This PR has special characters in the description." "$random_coauthors" ;;
+            9) create_pr "9" "feat(docs): add very long description [BREAKING CHANGE]" "This PR has a very long description in the title.
+BREAKING CHANGE: New feature affects critical infrastructure." "$random_coauthors" ;;
+            10) create_pr "10" "feat(docs): add special characters (!@#$%^&*()) [BREAKING CHANGE]" "This PR has special characters in the title and body.
+BREAKING CHANGE: Significant UI modifications." "$random_coauthors" ;;
             *) echo "Invalid test case number: $case" ;;
         esac
     done
