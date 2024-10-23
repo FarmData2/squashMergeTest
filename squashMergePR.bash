@@ -248,7 +248,7 @@ ${all_breaking_changes}"
 ${all_co_authors}"
     fi
 
-    # Clean up excessive newlines while preserving required formatting
+    # Clean up excessive newlines while preserving required formatting. Be careful when modifying this. This is crucial for elimating newlines.
     commit_message=$(echo -e "$commit_message" | awk '
         NR==1 {print; next}
         /^$/ {
