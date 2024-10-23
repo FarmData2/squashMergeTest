@@ -172,17 +172,15 @@ extractCommitInfo() {
     echo "$formatted_output"
 }
 
-# Function to convert to conventional commit. #Work on with braught because I'm at my wits end here.
+# Function to convert to conventional commit.
 convertToConventionalCommit() {
-    local type=$1
-    local scope=$2
-    local title=$3
-    local body=$4
-    local breaking_changes=$5
-    local co_authors=$6
+    local type="$1"
+    local scope="$2"
+    local title="$3"
+    local body="$4"
+    local breaking_changes="$5"
+    local co_authors="$6"
     local commit_message=""
-    local commit_body=""
-    local final_breaking_changes=""
 
     # Construct the first line of the commit message
     commit_message="${type}"
@@ -191,47 +189,81 @@ convertToConventionalCommit() {
     fi
     commit_message="${commit_message}: ${title}"
 
-    # Add body if not empty, but remove any "BREAKING CHANGE" lines from the body
+    # Add body if not empty
     if [[ -n "$body" ]]; then
-        # Extract and store any "BREAKING CHANGE" lines from the body
-        body_breaking_changes=$(echo "$body" | grep -E '^BREAKING CHANGE:.*')
-        # Remove breaking changes from the body
-        body=$(echo "$body" | sed '/^BREAKING CHANGE:/d')
-        commit_body="${body}"
+        # Extract breaking changes from the body before cleaning it
+        local body_breaking_changes=$(echo "$body" | grep -E '^BREAKING CHANGE:.*' || true)
+        # Extract co-authors from the body before cleaning it
+        local body_co_authors=$(echo "$body" | grep -E '^Co-authored-by:.*' || true)
+        
+        # Clean the body by removing breaking changes and co-authors
+        local cleaned_body=$(echo "$body" | grep -v '^BREAKING CHANGE:' | grep -v '^Co-authored-by:' | sed '/^$/d')
+        
+        if [[ -n "$cleaned_body" ]]; then
+            commit_message="${commit_message}
+
+${cleaned_body}"
+        fi
     fi
 
-    # Build the full commit message: type(scope): title, followed by the body
-    commit_message="${commit_message}"
-
-    # Add body if present
-    if [[ -n "$commit_body" ]]; then
-        commit_message="${commit_message}
-
-${commit_body}"
+    # Combine all breaking changes
+    local all_breaking_changes=""
+    if [[ -n "$body_breaking_changes" ]]; then
+        all_breaking_changes="${body_breaking_changes}"
+    fi
+    if [[ -n "$breaking_changes" ]]; then
+        if [[ -n "$all_breaking_changes" ]]; then
+            all_breaking_changes="${all_breaking_changes}
+${breaking_changes}"
+        else
+            all_breaking_changes="${breaking_changes}"
+        fi
     fi
 
-    # Insert breaking changes after the body and before co-authors
-    if [[ -n "$breaking_changes" || -n "$body_breaking_changes" ]]; then
-        final_breaking_changes="${breaking_changes}
-${body_breaking_changes}"
-
-        # Ensure breaking changes are added after the body
-        commit_message="${commit_message}
-
-${final_breaking_changes}"
+    # Combine all co-authors
+    local all_co_authors=""
+    if [[ -n "$body_co_authors" ]]; then
+        all_co_authors="${body_co_authors}"
     fi
-
-    # Append co-authors at the end
     if [[ -n "$co_authors" ]]; then
-        commit_message="${commit_message}
-
+        if [[ -n "$all_co_authors" ]]; then
+            all_co_authors="${all_co_authors}
 ${co_authors}"
+        else
+            all_co_authors="${co_authors}"
+        fi
     fi
 
-    # Trim multiple newlines to ensure only single newlines between sections
-    commit_message=$(echo -e "$commit_message" | sed -r '/^$/N;/^\n$/D')
+    # Add breaking changes if present
+    if [[ -n "$all_breaking_changes" ]]; then
+        commit_message="${commit_message}
 
-    # Return the full commit message
+${all_breaking_changes}"
+    fi
+
+    # Add co-authors if present
+    if [[ -n "$all_co_authors" ]]; then
+        commit_message="${commit_message}
+
+${all_co_authors}"
+    fi
+
+    # Clean up excessive newlines while preserving required formatting
+    commit_message=$(echo -e "$commit_message" | awk '
+        NR==1 {print; next}
+        /^$/ {
+            if (!blank) {
+                print
+                blank=1
+            }
+            next
+        }
+        {
+            blank=0
+            print
+        }
+    ')
+
     echo "$commit_message"
 }
 
