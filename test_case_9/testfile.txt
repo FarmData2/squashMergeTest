@@ -1,0 +1,1 @@
+Initial test change for: test(test): Invalid type and scope test
