@@ -1,2 +1,3 @@
 Initial test change for: test(test): Co-authors in both PR and commits
 Second test change for: test(test): Co-authors in both PR and commits
+Third test change for: test(test): Co-authors in both PR and commits
