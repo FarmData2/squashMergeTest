@@ -1,2 +1,3 @@
 Initial test change for: test(test): Breaking change marker in title [BREAKING CHANGE]
 Second test change for: test(test): Breaking change marker in title [BREAKING CHANGE]
+Third test change for: test(test): Breaking change marker in title [BREAKING CHANGE]
