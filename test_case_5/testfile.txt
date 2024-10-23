@@ -1,2 +1,3 @@
 Initial test change for: test(test): Co-author only in commit message
 Second test change for: test(test): Co-author only in commit message
+Third test change for: test(test): Co-author only in commit message
