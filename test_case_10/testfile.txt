@@ -1,3 +1,0 @@
-Initial test change for: test(test): Missing type and scope test
-Second test change for: test(test): Missing type and scope test
-Third test change for: test(test): Missing type and scope test
