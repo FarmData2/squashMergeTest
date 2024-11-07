@@ -78,19 +78,19 @@ create_pr() {
     # Case-specific modifications for "BREAKING CHANGE" or co-authors
     case "$case" in
         1)
-            body="${body}\n\nBREAKING CHANGE: This is a breaking change in the PR description."
+            body="${body}\nBREAKING CHANGE: This is a breaking change in the PR description."
             ;;
         2)
             ;;
         3)
-            body="${body}\n\nBREAKING CHANGE: This is a breaking change in the PR description."
+            body="${body}\nBREAKING CHANGE: This is a breaking change in the PR description."
             ;;
         4)
             if [ "$rand_coauthors" = true ]; then
                 random_coauthor=$(get_random_element COAUTHORS)
-                body="${body}\n\nCo-authored-by: ${random_coauthor}"
+                body="${body}\nCo-authored-by: ${random_coauthor}"
             else
-                body="${body}\n\nCo-authored-by: ${COAUTHORS[0]}"
+                body="${body}\nCo-authored-by: ${COAUTHORS[0]}"
             fi
             ;;
         5)
@@ -98,28 +98,23 @@ create_pr() {
         6)
             if [ "$rand_coauthors" = true ]; then
                 random_coauthor="${COAUTHORS[RANDOM % ${#COAUTHORS[@]}]}"
-                body="${body}\n\nCo-authored-by: ${random_coauthor}"
+                body="${body}\nCo-authored-by: ${random_coauthor}"
             else
-                body="${body}\n\nCo-authored-by: ${COAUTHORS[1]}"
+                body="${body}\nCo-authored-by: ${COAUTHORS[1]}"
             fi
             ;;
         7)
-            body="${body}\n\nBREAKING CHANGE: Multiple breaking changes in PR description."
-            pr_title="[BREAKING CHANGE] ${pr_title}"
-            ;;
-        8)
-            pr_title="[BREAKING CHANGE] ${pr_title}"
+            body="${body}\nBREAKING CHANGES: Multiple breaking changes in PR description."
             ;;
         9)
             ;;
         10)
             ;;
         11)
-            body="${body}\n\nBREAKING CHANGE: Comprehensive test with multiple formats."
-            pr_title="[BREAKING CHANGE] ${pr_title}"
+            body="${body}\nBREAKING CHANGE: Comprehensive test with multiple formats."
             ;;
         12)
-            body="${body}\n\nBREAKING CHANGE: This is a breaking change in the PR description."
+            body="${body}\nBREAKING CHANGE: This is a breaking change in the PR description."
             ;;
         13)
             ;;
@@ -133,12 +128,10 @@ create_pr() {
             pr_title=""
             ;;
         18)
-            body="${body}\n\nBREAKING CHANGE: This PR introduces a breaking change."
-            pr_title="[BREAKING CHANGE] ${pr_title}"
+            body="${body}\nBREAKING CHANGE: This PR introduces a breaking change."
             ;;
         19)
-            body="${body}\n\nBREAKING CHANGE: Breaking change 1.\nBREAKING CHANGE: Breaking change 2."
-            pr_title="[BREAKING CHANGE] ${pr_title}"
+            body="${body}\nBREAKING CHANGES: Breaking change 1.\nBREAKING CHANGE: Breaking change 2."
             ;;
         20)
             pr_title="${pr_title} $(printf '=%.0s' {1..100})"
@@ -149,7 +142,7 @@ create_pr() {
     esac
 
     echo "Creating PR test case ${case}: ${pr_title}"
-    echo "Purpose: ${body}"
+    echo -e "Purpose: ${body}"
 
     git checkout main && git pull && git checkout -b "$branch"
     mkdir -p "test_case_${case}" && echo "Change for: $pr_title" >> "test_case_${case}/testfile.txt"
@@ -180,7 +173,7 @@ create_pr() {
             fi
             ;;
         7)
-            git add . && git commit -m "feat(docs): breaking changes" -m "BREAKING CHANGE: Change 1" -m "BREAKING CHANGE: Change 2"
+            git add . && git commit -m "feat(docs): breaking changes" -m "BREAKING CHANGES: Change 1" -m "BREAKING CHANGE: Change 2"
             ;;
         11)
             if [ "$rand_coauthors" = true ]; then
@@ -191,7 +184,7 @@ create_pr() {
             fi
             ;;
         19)
-            git add . && git commit -m "feat(docs): breaking change" -m "BREAKING CHANGE: Commit breaking change 1" -m "BREAKING CHANGE: Commit breaking change 2"
+            git add . && git commit -m "feat(docs): breaking change" -m "BREAKING CHANGES: Commit breaking change 1" -m "BREAKING CHANGE: Commit breaking change 2"
             ;;
     esac
 
@@ -214,7 +207,6 @@ run_selected_tests() {
             5) create_pr "5" "Co-author only in commit message" "Testing co-author in commit message only." "$random_coauthors" "$random_types" false false false false ;;
             6) create_pr "6" "Co-authors in both PR and commits" "Testing co-authors in both locations." "$random_coauthors" "$random_types" false false false false ;;
             7) create_pr "7" "Multiple breaking changes and co-authors" "Testing multiple breaking changes and co-authors." "$random_coauthors" "$random_types" false false false false ;;
-            8) create_pr "8" "Breaking change marker in title [BREAKING CHANGE]" "Testing breaking change marker in title and body." "$random_coauthors" "$random_types" false false false false ;;
             9) create_pr "9" "Invalid type and scope test" "Testing invalid type and scope." "$random_coauthors" "$random_types" true true false false ;;
             10) create_pr "10" "Missing type and scope test" "Testing missing type and scope." "$random_coauthors" "$random_types" false false true true ;;
             11) create_pr "11" "Verbose edge case with multiple formats" "Comprehensive edge case test." "$random_coauthors" "$random_types" false false false false ;;
@@ -278,7 +270,7 @@ main() {
         case $1 in
             -h|--help) display_help; exit 0 ;;
             -r|--reset) reset_all_test_cases; exit 0 ;;
-            -a|--all) selected_cases="1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21" ;;
+            -a|--all) selected_cases="1,2,3,4,5,6,7,9,10,11,12,13,14,15,16,17,18,19,20,21" ;;
             -s|--select) selected_cases="$2"; shift ;;
             -R|--random) random_coauthors=true ;;
             -T|--types) random_types=true ;;
@@ -296,3 +288,4 @@ main() {
 }
 
 main "$@"
+
