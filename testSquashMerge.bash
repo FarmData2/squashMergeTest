@@ -158,40 +158,40 @@ create_pr() {
     # Additional commit message customization for specific cases
     case "$case" in
         2)
-            git add . && git commit -m "feat(docs): breaking change" -m "BREAKING CHANGE: Commit only breaking change"
+            git add . && git commit -m "feat(docs): breaking change" -m "" -m "BREAKING CHANGE: Commit only breaking change"
             ;;
         3)
-            git add . && git commit -m "feat(docs): breaking change" -m "BREAKING CHANGE: Commit breaking change"
+            git add . && git commit -m "feat(docs): breaking change" -m "" -m "BREAKING CHANGE: Commit breaking change"
             ;;
         5)
             if [ "$rand_coauthors" = true ]; then
                 random_coauthor=$(get_random_element COAUTHORS)
-                git add . && git commit -m "feat(docs): co-author test" -m "Co-authored-by: ${random_coauthor}"
+                git add . && git commit -m "feat(docs): co-author test" -m "" -m "Co-authored-by: ${random_coauthor}"
             else
-                git add . && git commit -m "feat(docs): co-author test" -m "Co-authored-by: ${COAUTHORS[0]}"
+                git add . && git commit -m "feat(docs): co-author test" -m "" -m "Co-authored-by: ${COAUTHORS[0]}"
             fi
             ;;
         6)
             if [ "$rand_coauthors" = true ]; then
                 random_coauthor=$(get_random_element COAUTHORS)
-                git add . && git commit -m "feat(docs): co-author test" -m "Co-authored-by: ${random_coauthor}"
+                git add . && git commit -m "feat(docs): co-author test" -m "" -m "Co-authored-by: ${random_coauthor}"
             else
-                git add . && git commit -m "feat(docs): co-author test" -m "Co-authored-by: ${COAUTHORS[1]}"
+                git add . && git commit -m "feat(docs): co-author test" -m "" -m "Co-authored-by: ${COAUTHORS[1]}"
             fi
             ;;
         7)
-            git add . && git commit -m "feat(docs): breaking changes" -m "BREAKING CHANGE: Change 1" -m "BREAKING CHANGE: Change 2"
+            git add . && git commit -m "feat(docs): breaking changes" -m "" -m "BREAKING CHANGE: Change 1" -m "BREAKING CHANGE: Change 2"
             ;;
         11)
             if [ "$rand_coauthors" = true ]; then
                 random_coauthor=$(get_random_element COAUTHORS)
-                git add . && git commit -m "feat(docs): Comprehensive edge case" -m "BREAKING CHANGE: Comprehensive test" -m "Co-authored-by: ${random_coauthor}"
+                git add . && git commit -m "feat(docs): Comprehensive edge case" -m "" -m "BREAKING CHANGE: Comprehensive test" -m "" -m "Co-authored-by: ${random_coauthor}"
             else
-                git add . && git commit -m "feat(docs): Comprehensive edge case" -m "BREAKING CHANGE: Comprehensive test" -m "Co-authored-by: ${COAUTHORS[0]}"
+                git add . && git commit -m "feat(docs): Comprehensive edge case" -m "" -m "BREAKING CHANGE: Comprehensive test" -m "" -m "Co-authored-by: ${COAUTHORS[0]}"
             fi
             ;;
         19)
-            git add . && git commit -m "feat(docs): breaking change" -m "BREAKING CHANGE: Commit breaking change 1" -m "BREAKING CHANGE: Commit breaking change 2"
+            git add . && git commit -m "feat(docs): breaking change" -m "" -m "BREAKING CHANGE: Commit breaking change 1" -m "BREAKING CHANGE: Commit breaking change 2"
             ;;
     esac
 
@@ -266,6 +266,33 @@ display_help() {
     echo "  -R, --random        Run with random co-authors"
     echo "  -T, --types         Run with random types/scopes"
     echo "  --full-random       Run with random co-authors and types"
+    echo "  -l, --list          List all available test cases"
+}
+
+print_test_cases() {
+    echo "Available Test Cases:"
+    echo "===================="
+    echo "1  - Breaking change in PR description only"
+    echo "2  - Breaking change only in commit message"
+    echo "3  - Breaking changes in both PR and commits"
+    echo "4  - Co-author only in PR description"
+    echo "5  - Co-author only in commit message"
+    echo "6  - Co-authors in both PR and commits"
+    echo "7  - Multiple breaking changes and co-authors"
+    echo "8  - Breaking change marker in title [BREAKING CHANGE]"
+    echo "9  - Invalid type and scope test"
+    echo "10 - Missing type and scope test"
+    echo "11 - Verbose edge case with multiple formats"
+    echo "12 - Breaking change in PR body only"
+    echo "13 - Test invalid type"
+    echo "14 - Test invalid scope"
+    echo "15 - Add new feature without type"
+    echo "16 - Add feature without scope"
+    echo "17 - Empty PR title"
+    echo "18 - Add breaking change"
+    echo "19 - Multiple breaking changes"
+    echo "20 - Very long title exceeding usual length"
+    echo "21 - Special characters in title"
 }
 
 main() {
@@ -278,6 +305,7 @@ main() {
         case $1 in
             -h|--help) display_help; exit 0 ;;
             -r|--reset) reset_all_test_cases; exit 0 ;;
+            -l|--list) print_test_cases; exit 0 ;;
             -a|--all) selected_cases="1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21" ;;
             -s|--select) selected_cases="$2"; shift ;;
             -R|--random) random_coauthors=true ;;

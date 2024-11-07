@@ -187,16 +187,17 @@ convertToConventionalCommit() {
     if [[ "$scope" != "none" && -n "$scope" ]]; then
         commit_message="${commit_message}(${scope})"
     fi
+    # Ensure proper spacing after colon
     commit_message="${commit_message}: ${title}"
 
+    # Rest of the function remains the same...
     # Add body if not empty
     if [[ -n "$body" ]]; then
-        # Extract breaking changes from the body before cleaning it
+        # Extract breaking changes and co-authors before cleaning
         local body_breaking_changes=$(echo "$body" | grep -E '^BREAKING CHANGE:.*' || true)
-        # Extract co-authors from the body before cleaning it
         local body_co_authors=$(echo "$body" | grep -E '^Co-authored-by:.*' || true)
         
-        # Clean the body by removing breaking changes and co-authors
+        # Clean the body by removing breaking changes and co-authors lines
         local cleaned_body=$(echo "$body" | grep -v '^BREAKING CHANGE:' | grep -v '^Co-authored-by:' | sed '/^$/d')
         
         if [[ -n "$cleaned_body" ]]; then
@@ -206,49 +207,21 @@ ${cleaned_body}"
         fi
     fi
 
-    # Combine all breaking changes
-    local all_breaking_changes=""
-    if [[ -n "$body_breaking_changes" ]]; then
-        all_breaking_changes="${body_breaking_changes}"
-    fi
+    # Add breaking changes if present (with proper spacing)
     if [[ -n "$breaking_changes" ]]; then
-        if [[ -n "$all_breaking_changes" ]]; then
-            all_breaking_changes="${all_breaking_changes}
+        commit_message="${commit_message}
+
 ${breaking_changes}"
-        else
-            all_breaking_changes="${breaking_changes}"
-        fi
     fi
 
-    # Combine all co-authors
-    local all_co_authors=""
-    if [[ -n "$body_co_authors" ]]; then
-        all_co_authors="${body_co_authors}"
-    fi
+    # Add co-authors if present (with proper spacing)
     if [[ -n "$co_authors" ]]; then
-        if [[ -n "$all_co_authors" ]]; then
-            all_co_authors="${all_co_authors}
+        commit_message="${commit_message}
+
 ${co_authors}"
-        else
-            all_co_authors="${co_authors}"
-        fi
     fi
 
-    # Add breaking changes if present
-    if [[ -n "$all_breaking_changes" ]]; then
-        commit_message="${commit_message}
-
-${all_breaking_changes}"
-    fi
-
-    # Add co-authors if present
-    if [[ -n "$all_co_authors" ]]; then
-        commit_message="${commit_message}
-
-${all_co_authors}"
-    fi
-
-    # Clean up excessive newlines while preserving required formatting. Be careful when modifying this. This is crucial for elimating newlines.
+    # Clean up excessive newlines while preserving required formatting
     commit_message=$(echo -e "$commit_message" | awk '
         NR==1 {print; next}
         /^$/ {
@@ -327,25 +300,17 @@ parsePrTitle() {
     local type=""
     local scope=""
     local description=""
-    # Regex to fit conventional commit format, including scope only and empty description
-    if [[ $pr_title =~ ^([a-z]+)\(([a-z]+)\):(.*)$ ]]; then
+    
+    # Simplified regex pattern for bash
+    if [[ $pr_title =~ ^([[:alnum:]]+)\(([[:alnum:]0-9]+)\):[[:space:]]*(.*) ]]; then
         type="${BASH_REMATCH[1]}"
         scope="${BASH_REMATCH[2]}"
-        description="${BASH_REMATCH[3]#"${BASH_REMATCH[3]%%[![:space:]]*}"}" 
-    elif [[ $pr_title =~ ^([a-z]+)\(([a-z]+)\)$ ]]; then
+        description="${BASH_REMATCH[3]}"
+    elif [[ $pr_title =~ ^([[:alnum:]]+):[[:space:]]*(.*) ]]; then
         type="${BASH_REMATCH[1]}"
-        scope="${BASH_REMATCH[2]}"
-    elif [[ $pr_title =~ ^\(([a-z]+)\):(.*)$ ]]; then
-        scope="${BASH_REMATCH[1]}"
-        description="${BASH_REMATCH[2]#"${BASH_REMATCH[2]%%[![:space:]]*}"}" 
-    elif [[ $pr_title =~ ^\(([a-z]+)\)$ ]]; then
-        scope="${BASH_REMATCH[1]}"
-    elif [[ $pr_title =~ ^([a-z]+):(.*)$ ]]; then
-        type="${BASH_REMATCH[1]}"
-        description="${BASH_REMATCH[2]#"${BASH_REMATCH[2]%%[![:space:]]*}"}" 
-    elif [[ $pr_title =~ ^(.+)$ ]]; then
-        description="${BASH_REMATCH[1]}"
+        description="${BASH_REMATCH[2]}"
     fi
+    
     echo "$type|$scope|$description"
 }
 
