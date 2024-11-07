@@ -75,69 +75,52 @@ create_pr() {
     local branch="test-case-${case}-$(date +%s)"
     local pr_title=$(generate_title "$title" "$rand_types" "$invalid_type" "$invalid_scope" "$no_type" "$no_scope")
 
+    # Use an array to store body parts and join them with newlines later
+    local body_parts=()
+    body_parts+=("$body")
+
     # Case-specific modifications for "BREAKING CHANGE" or co-authors
     case "$case" in
         1)
-            body="${body}\n\nBREAKING CHANGE: This is a breaking change in the PR description."
-            ;;
-        2)
+            body_parts+=("BREAKING CHANGE: This is a breaking change in the PR description.")
             ;;
         3)
-            body="${body}\n\nBREAKING CHANGE: This is a breaking change in the PR description."
+            body_parts+=("BREAKING CHANGE: This is a breaking change in the PR description.")
             ;;
         4)
-            if [ "$rand_coauthors" = true ]; then
-                random_coauthor=$(get_random_element COAUTHORS)
-                body="${body}\n\nCo-authored-by: ${random_coauthor}"
-            else
-                body="${body}\n\nCo-authored-by: ${COAUTHORS[0]}"
-            fi
-            ;;
-        5)
+            random_coauthor=$(get_random_element COAUTHORS)
+            body_parts+=("Co-authored-by: ${random_coauthor}")
             ;;
         6)
-            if [ "$rand_coauthors" = true ]; then
-                random_coauthor="${COAUTHORS[RANDOM % ${#COAUTHORS[@]}]}"
-                body="${body}\n\nCo-authored-by: ${random_coauthor}"
-            else
-                body="${body}\n\nCo-authored-by: ${COAUTHORS[1]}"
-            fi
+            random_coauthor=$(get_random_element COAUTHORS)
+            body_parts+=("Co-authored-by: ${random_coauthor}")
             ;;
         7)
-            body="${body}\n\nBREAKING CHANGE: Multiple breaking changes in PR description."
+            body_parts+=("BREAKING CHANGE: Multiple breaking changes in PR description.")
             pr_title="[BREAKING CHANGE] ${pr_title}"
             ;;
         8)
             pr_title="[BREAKING CHANGE] ${pr_title}"
             ;;
-        9)
-            ;;
-        10)
-            ;;
         11)
-            body="${body}\n\nBREAKING CHANGE: Comprehensive test with multiple formats."
+            body_parts+=("BREAKING CHANGE: Comprehensive test with multiple formats.")
+            random_coauthor=$(get_random_element COAUTHORS)
+            body_parts+=("Co-authored-by: ${random_coauthor}")
             pr_title="[BREAKING CHANGE] ${pr_title}"
             ;;
         12)
-            body="${body}\n\nBREAKING CHANGE: This is a breaking change in the PR description."
-            ;;
-        13)
-            ;;
-        14)
-            ;;
-        15)
-            ;;
-        16)
+            body_parts+=("BREAKING CHANGE: This is a breaking change in the PR description.")
             ;;
         17)
             pr_title=""
             ;;
         18)
-            body="${body}\n\nBREAKING CHANGE: This PR introduces a breaking change."
+            body_parts+=("BREAKING CHANGE: This PR introduces a breaking change.")
             pr_title="[BREAKING CHANGE] ${pr_title}"
             ;;
         19)
-            body="${body}\n\nBREAKING CHANGE: Breaking change 1.\nBREAKING CHANGE: Breaking change 2."
+            body_parts+=("BREAKING CHANGE: Breaking change 1.")
+            body_parts+=("BREAKING CHANGE: Breaking change 2.")
             pr_title="[BREAKING CHANGE] ${pr_title}"
             ;;
         20)
@@ -148,8 +131,11 @@ create_pr() {
             ;;
     esac
 
+    # Join body parts with actual newlines
+    local final_body=$(printf "%s\n\n" "${body_parts[@]}")
+
     echo "Creating PR test case ${case}: ${pr_title}"
-    echo "Purpose: ${body}"
+    echo "Purpose: ${final_body}"
 
     git checkout main && git pull && git checkout -b "$branch"
     mkdir -p "test_case_${case}" && echo "Change for: $pr_title" >> "test_case_${case}/testfile.txt"
@@ -164,38 +150,26 @@ create_pr() {
             git add . && git commit -m "feat(docs): breaking change" -m "BREAKING CHANGE: Commit breaking change"
             ;;
         5)
-            if [ "$rand_coauthors" = true ]; then
-                random_coauthor=$(get_random_element COAUTHORS)
-                git add . && git commit -m "feat(docs): co-author test" -m "Co-authored-by: ${random_coauthor}"
-            else
-                git add . && git commit -m "feat(docs): co-author test" -m "Co-authored-by: ${COAUTHORS[0]}"
-            fi
+            random_coauthor=$(get_random_element COAUTHORS)
+            git add . && git commit -m "feat(docs): co-author test" -m "Co-authored-by: ${random_coauthor}"
             ;;
         6)
-            if [ "$rand_coauthors" = true ]; then
-                random_coauthor=$(get_random_element COAUTHORS)
-                git add . && git commit -m "feat(docs): co-author test" -m "Co-authored-by: ${random_coauthor}"
-            else
-                git add . && git commit -m "feat(docs): co-author test" -m "Co-authored-by: ${COAUTHORS[1]}"
-            fi
+            random_coauthor=$(get_random_element COAUTHORS)
+            git add . && git commit -m "feat(docs): co-author test" -m "Co-authored-by: ${random_coauthor}"
             ;;
         7)
             git add . && git commit -m "feat(docs): breaking changes" -m "BREAKING CHANGE: Change 1" -m "BREAKING CHANGE: Change 2"
             ;;
         11)
-            if [ "$rand_coauthors" = true ]; then
-                random_coauthor=$(get_random_element COAUTHORS)
-                git add . && git commit -m "feat(docs): Comprehensive edge case" -m "BREAKING CHANGE: Comprehensive test" -m "Co-authored-by: ${random_coauthor}"
-            else
-                git add . && git commit -m "feat(docs): Comprehensive edge case" -m "BREAKING CHANGE: Comprehensive test" -m "Co-authored-by: ${COAUTHORS[0]}"
-            fi
+            random_coauthor=$(get_random_element COAUTHORS)
+            git add . && git commit -m "feat(docs): Comprehensive edge case" -m "BREAKING CHANGE: Comprehensive test" -m "Co-authored-by: ${random_coauthor}"
             ;;
         19)
             git add . && git commit -m "feat(docs): breaking change" -m "BREAKING CHANGE: Commit breaking change 1" -m "BREAKING CHANGE: Commit breaking change 2"
             ;;
     esac
 
-    git push -u origin "$branch" && pr_url=$(gh pr create --title "$pr_title" --body "$body")
+    git push -u origin "$branch" && pr_url=$(gh pr create --title "$pr_title" --body "$final_body")
     echo "Created PR: $pr_url"
     git checkout main
 }
