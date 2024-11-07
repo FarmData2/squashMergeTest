@@ -1,0 +1,1 @@
+Change for: fix(school): Co-author only in PR description
