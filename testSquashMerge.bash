@@ -78,19 +78,27 @@ create_pr() {
     # Case-specific modifications for "BREAKING CHANGE" or co-authors
     case "$case" in
         1)
-            body="${body}\n\nBREAKING CHANGE: This is a breaking change in the PR description."
+            body="${body}
+
+BREAKING CHANGE: This is a breaking change in the PR description."
             ;;
         2)
             ;;
         3)
-            body="${body}\n\nBREAKING CHANGE: This is a breaking change in the PR description."
+            body="${body}
+
+BREAKING CHANGE: This is a breaking change in the PR description."
             ;;
         4)
             if [ "$rand_coauthors" = true ]; then
                 random_coauthor=$(get_random_element COAUTHORS)
-                body="${body}\n\nCo-authored-by: ${random_coauthor}"
+                body="${body}
+
+Co-authored-by: ${random_coauthor}"
             else
-                body="${body}\n\nCo-authored-by: ${COAUTHORS[0]}"
+                body="${body}
+
+Co-authored-by: ${COAUTHORS[0]}"
             fi
             ;;
         5)
@@ -98,28 +106,38 @@ create_pr() {
         6)
             if [ "$rand_coauthors" = true ]; then
                 random_coauthor="${COAUTHORS[RANDOM % ${#COAUTHORS[@]}]}"
-                body="${body}\n\nCo-authored-by: ${random_coauthor}"
+                body="${body}
+
+Co-authored-by: ${random_coauthor}"
             else
-                body="${body}\n\nCo-authored-by: ${COAUTHORS[1]}"
+                body="${body}
+
+Co-authored-by: ${COAUTHORS[1]}"
             fi
             ;;
         7)
-            body="${body}\n\nBREAKING CHANGE: Multiple breaking changes in PR description."
-            pr_title="[BREAKING CHANGE] ${pr_title}"
+            body="${body}
+
+BREAKING CHANGE: Multiple breaking changes in PR description."
+            pr_title="BREAKING CHANGE: ${pr_title}"
             ;;
         8)
-            pr_title="[BREAKING CHANGE] ${pr_title}"
+            pr_title="BREAKING CHANGE: ${pr_title}"
             ;;
         9)
             ;;
         10)
             ;;
         11)
-            body="${body}\n\nBREAKING CHANGE: Comprehensive test with multiple formats."
-            pr_title="[BREAKING CHANGE] ${pr_title}"
+            body="${body}
+
+BREAKING CHANGE: Comprehensive test with multiple formats."
+            pr_title="BREAKING CHANGE: ${pr_title}"
             ;;
         12)
-            body="${body}\n\nBREAKING CHANGE: This is a breaking change in the PR description."
+            body="${body}
+
+BREAKING CHANGE: This is a breaking change in the PR description."
             ;;
         13)
             ;;
@@ -133,12 +151,18 @@ create_pr() {
             pr_title=""
             ;;
         18)
-            body="${body}\n\nBREAKING CHANGE: This PR introduces a breaking change."
-            pr_title="[BREAKING CHANGE] ${pr_title}"
+            body="${body}
+
+BREAKING CHANGE: This PR introduces a breaking change."
+            pr_title="BREAKING CHANGE: ${pr_title}"
             ;;
         19)
-            body="${body}\n\nBREAKING CHANGE: Breaking change 1.\nBREAKING CHANGE: Breaking change 2."
-            pr_title="[BREAKING CHANGE] ${pr_title}"
+            body="${body}
+
+BREAKING CHANGE: Breaking change 1.
+
+BREAKING CHANGE: Breaking change 2."
+            pr_title="BREAKING CHANGE: ${pr_title}"
             ;;
         20)
             pr_title="${pr_title} $(printf '=%.0s' {1..100})"
