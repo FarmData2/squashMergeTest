@@ -1,0 +1,1 @@
+Change for: ci(school): Co-authors in both PR and commits
