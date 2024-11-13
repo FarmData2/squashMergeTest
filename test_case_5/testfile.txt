@@ -1,0 +1,1 @@
+Change for: style(school): Co-author only in commit message
