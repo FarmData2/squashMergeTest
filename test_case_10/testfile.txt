@@ -1,2 +1,0 @@
-Change for: ci(invalid): Test invalid scope
-Additional change for test case 10
