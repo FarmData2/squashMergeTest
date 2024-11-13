@@ -1,0 +1,1 @@
+Change for: style(lib): Co-author only in commit message
