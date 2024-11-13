@@ -3,8 +3,8 @@
 # Enhanced PR Test Script for testing PR generation with edge cases
 
 # Set GPG_TTY
-GPG_TTY=$(tty)
-export GPG_TTY
+#GPG_TTY=$(tty)
+#export GPG_TTY
 
 # Valid types and scopes for conventional commits
 VALID_TYPES=("build" "chore" "ci" "docs" "feat" "fix" "perf" "refactor" "style" "test")
@@ -151,9 +151,36 @@ create_pr() {
     echo "Creating PR test case ${case}: ${pr_title}"
     echo "Purpose: ${body}"
 
+    # Initial commit with appropriate metadata based on case
+    local commit_message=$(generate_title "Initial commit" "$rand_types" "$invalid_type" "$invalid_scope" "$no_type" "$no_scope")
+    
+    # Add case-specific metadata to initial commit
+    case "$case" in
+        4|6)
+            if [ "$rand_coauthors" = true ]; then
+                random_coauthor=$(get_random_element COAUTHORS)
+                commit_message="${commit_message}\n\nCo-authored-by: ${random_coauthor}"
+            else
+                coauthor_index=$([ "$case" = "4" ] && echo 0 || echo 1)
+                commit_message="${commit_message}\n\nCo-authored-by: ${COAUTHORS[$coauthor_index]}"
+            fi
+            ;;
+        7|19)
+            commit_message="${commit_message}\n\nBREAKING CHANGE: Change 1\nBREAKING CHANGE: Change 2"
+            ;;
+        11)
+            if [ "$rand_coauthors" = true ]; then
+                random_coauthor=$(get_random_element COAUTHORS)
+                commit_message="${commit_message}\n\nBREAKING CHANGE: Comprehensive test\nCo-authored-by: ${random_coauthor}"
+            else
+                commit_message="${commit_message}\n\nBREAKING CHANGE: Comprehensive test\nCo-authored-by: ${COAUTHORS[0]}"
+            fi
+            ;;
+    esac
+
     git checkout main && git pull && git checkout -b "$branch"
     mkdir -p "test_case_${case}" && echo "Change for: $pr_title" >> "test_case_${case}/testfile.txt"
-    git add "test_case_${case}" && git commit -m "$(generate_title "Initial commit" "$rand_types" "$invalid_type" "$invalid_scope" "$no_type" "$no_scope")"
+    git add "test_case_${case}" && git commit -m "$commit_message"
 
     # Additional commit message customization for specific cases
     case "$case" in
