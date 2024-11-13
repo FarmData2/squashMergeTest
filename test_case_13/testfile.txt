@@ -1,0 +1,1 @@
+Change for: random(comp): Test invalid type
