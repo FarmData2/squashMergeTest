@@ -1,0 +1,1 @@
+Change for: [BREAKING CHANGE] build(school): Add breaking change
