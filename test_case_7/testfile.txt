@@ -1,0 +1,1 @@
+Change for: [BREAKING CHANGE] style(comp): Multiple breaking changes and co-authors
