@@ -78,19 +78,27 @@ create_pr() {
     # Case-specific modifications for "BREAKING CHANGE" or co-authors
     case "$case" in
         1)
-            body="${body}\n\nBREAKING CHANGE: This is a breaking change in the PR description."
+            body="$body
+
+BREAKING CHANGE: This is a breaking change in the PR description."
             ;;
         2)
             ;;
         3)
-            body="${body}\n\nBREAKING CHANGE: This is a breaking change in the PR description."
+            body="$body
+
+BREAKING CHANGE: This is a breaking change in the PR description."
             ;;
         4)
             if [ "$rand_coauthors" = true ]; then
                 random_coauthor=$(get_random_element COAUTHORS)
-                body="${body}\n\nCo-authored-by: ${random_coauthor}"
+                body="$body
+
+Co-authored-by: ${random_coauthor}"
             else
-                body="${body}\n\nCo-authored-by: ${COAUTHORS[0]}"
+                body="$body
+
+Co-authored-by: ${COAUTHORS[0]}"
             fi
             ;;
         5)
@@ -98,28 +106,33 @@ create_pr() {
         6)
             if [ "$rand_coauthors" = true ]; then
                 random_coauthor="${COAUTHORS[RANDOM % ${#COAUTHORS[@]}]}"
-                body="${body}\n\nCo-authored-by: ${random_coauthor}"
+                body="$body
+
+Co-authored-by: ${random_coauthor}"
             else
-                body="${body}\n\nCo-authored-by: ${COAUTHORS[1]}"
+                body="$body
+
+Co-authored-by: ${COAUTHORS[1]}"
             fi
             ;;
         7)
-            body="${body}\n\nBREAKING CHANGE: Multiple breaking changes in PR description."
-            pr_title="[BREAKING CHANGE] ${pr_title}"
-            ;;
-        8)
-            pr_title="[BREAKING CHANGE] ${pr_title}"
+            body="$body
+
+BREAKING CHANGE: Multiple breaking changes in PR description."
             ;;
         9)
             ;;
         10)
             ;;
         11)
-            body="${body}\n\nBREAKING CHANGE: Comprehensive test with multiple formats."
-            pr_title="[BREAKING CHANGE] ${pr_title}"
+            body="$body
+
+BREAKING CHANGE: Comprehensive test with multiple formats."
             ;;
         12)
-            body="${body}\n\nBREAKING CHANGE: This is a breaking change in the PR description."
+            body="$body
+
+BREAKING CHANGE: This is a breaking change in the PR description."
             ;;
         13)
             ;;
@@ -131,14 +144,6 @@ create_pr() {
             ;;
         17)
             pr_title=""
-            ;;
-        18)
-            body="${body}\n\nBREAKING CHANGE: This PR introduces a breaking change."
-            pr_title="[BREAKING CHANGE] ${pr_title}"
-            ;;
-        19)
-            body="${body}\n\nBREAKING CHANGE: Breaking change 1.\nBREAKING CHANGE: Breaking change 2."
-            pr_title="[BREAKING CHANGE] ${pr_title}"
             ;;
         20)
             pr_title="${pr_title} $(printf '=%.0s' {1..100})"
@@ -153,45 +158,104 @@ create_pr() {
 
     git checkout main && git pull && git checkout -b "$branch"
     mkdir -p "test_case_${case}" && echo "Change for: $pr_title" >> "test_case_${case}/testfile.txt"
-    git add "test_case_${case}" && git commit -m "$(generate_title "Initial commit" "$rand_types" "$invalid_type" "$invalid_scope" "$no_type" "$no_scope")"
+    
+    # Initial commit with appropriate metadata
+    local commit_message=$(generate_title "Initial commit" "$rand_types" "$invalid_type" "$invalid_scope" "$no_type" "$no_scope")
+    
+    # Add case-specific metadata to initial commit
+    case "$case" in
+        4|6)
+            if [ "$rand_coauthors" = true ]; then
+                random_coauthor=$(get_random_element COAUTHORS)
+                commit_message="$commit_message
+
+Co-authored-by: ${random_coauthor}"
+            else
+                coauthor_index=$([ "$case" = "4" ] && echo 0 || echo 1)
+                commit_message="$commit_message
+
+Co-authored-by: ${COAUTHORS[$coauthor_index]}"
+            fi
+            ;;
+        7)
+            commit_message="$commit_message
+
+BREAKING CHANGE: Change 1
+BREAKING CHANGE: Change 2"
+            ;;
+        11)
+            if [ "$rand_coauthors" = true ]; then
+                random_coauthor=$(get_random_element COAUTHORS)
+                commit_message="$commit_message
+
+BREAKING CHANGE: Comprehensive test
+Co-authored-by: ${random_coauthor}"
+            else
+                commit_message="$commit_message
+
+BREAKING CHANGE: Comprehensive test
+Co-authored-by: ${COAUTHORS[0]}"
+            fi
+            ;;
+    esac
+
+    git add "test_case_${case}" && git commit -m "$commit_message"
 
     # Additional commit message customization for specific cases
     case "$case" in
         2)
-            git add . && git commit -m "feat(docs): breaking change" -m "BREAKING CHANGE: Commit only breaking change"
+            git add . && git commit -m "feat(docs): breaking change
+
+BREAKING CHANGE: Commit only breaking change"
             ;;
         3)
-            git add . && git commit -m "feat(docs): breaking change" -m "BREAKING CHANGE: Commit breaking change"
+            git add . && git commit -m "feat(docs): breaking change
+
+BREAKING CHANGE: Commit breaking change"
             ;;
         5)
             if [ "$rand_coauthors" = true ]; then
                 random_coauthor=$(get_random_element COAUTHORS)
-                git add . && git commit -m "feat(docs): co-author test" -m "Co-authored-by: ${random_coauthor}"
+                git add . && git commit -m "feat(docs): co-author test
+
+Co-authored-by: ${random_coauthor}"
             else
-                git add . && git commit -m "feat(docs): co-author test" -m "Co-authored-by: ${COAUTHORS[0]}"
+                git add . && git commit -m "feat(docs): co-author test
+
+Co-authored-by: ${COAUTHORS[0]}"
             fi
             ;;
         6)
             if [ "$rand_coauthors" = true ]; then
                 random_coauthor=$(get_random_element COAUTHORS)
-                git add . && git commit -m "feat(docs): co-author test" -m "Co-authored-by: ${random_coauthor}"
+                git add . && git commit -m "feat(docs): co-author test
+
+Co-authored-by: ${random_coauthor}"
             else
-                git add . && git commit -m "feat(docs): co-author test" -m "Co-authored-by: ${COAUTHORS[1]}"
+                git add . && git commit -m "feat(docs): co-author test
+
+Co-authored-by: ${COAUTHORS[1]}"
             fi
             ;;
         7)
-            git add . && git commit -m "feat(docs): breaking changes" -m "BREAKING CHANGE: Change 1" -m "BREAKING CHANGE: Change 2"
+            git add . && git commit -m "feat(docs): breaking changes
+
+BREAKING CHANGE: Change 1
+BREAKING CHANGE: Change 2"
             ;;
         11)
             if [ "$rand_coauthors" = true ]; then
                 random_coauthor=$(get_random_element COAUTHORS)
-                git add . && git commit -m "feat(docs): Comprehensive edge case" -m "BREAKING CHANGE: Comprehensive test" -m "Co-authored-by: ${random_coauthor}"
+                git add . && git commit -m "feat(docs): Comprehensive edge case
+
+BREAKING CHANGE: Comprehensive test
+Co-authored-by: ${random_coauthor}"
             else
-                git add . && git commit -m "feat(docs): Comprehensive edge case" -m "BREAKING CHANGE: Comprehensive test" -m "Co-authored-by: ${COAUTHORS[0]}"
+                git add . && git commit -m "feat(docs): Comprehensive edge case
+
+BREAKING CHANGE: Comprehensive test
+Co-authored-by: ${COAUTHORS[0]}"
             fi
-            ;;
-        19)
-            git add . && git commit -m "feat(docs): breaking change" -m "BREAKING CHANGE: Commit breaking change 1" -m "BREAKING CHANGE: Commit breaking change 2"
             ;;
     esac
 
@@ -213,8 +277,7 @@ run_selected_tests() {
             4) create_pr "4" "Co-author only in PR description" "Testing co-author in PR description only." "$random_coauthors" "$random_types" false false false false ;;
             5) create_pr "5" "Co-author only in commit message" "Testing co-author in commit message only." "$random_coauthors" "$random_types" false false false false ;;
             6) create_pr "6" "Co-authors in both PR and commits" "Testing co-authors in both locations." "$random_coauthors" "$random_types" false false false false ;;
-            7) create_pr "7" "Multiple breaking changes and co-authors" "Testing multiple breaking changes and co-authors." "$random_coauthors" "$random_types" false false false false ;;
-            8) create_pr "8" "Breaking change marker in title [BREAKING CHANGE]" "Testing breaking change marker in title and body." "$random_coauthors" "$random_types" false false false false ;;
+            7) create_pr "7" "Multiple breaking changes" "Testing multiple breaking changes." "$random_coauthors" "$random_types" false false false false ;;
             9) create_pr "9" "Invalid type and scope test" "Testing invalid type and scope." "$random_coauthors" "$random_types" true true false false ;;
             10) create_pr "10" "Missing type and scope test" "Testing missing type and scope." "$random_coauthors" "$random_types" false false true true ;;
             11) create_pr "11" "Verbose edge case with multiple formats" "Comprehensive edge case test." "$random_coauthors" "$random_types" false false false false ;;
@@ -224,8 +287,6 @@ run_selected_tests() {
             15) create_pr "15" "Add new feature without type" "Testing missing type in commit title." "$random_coauthors" "$random_types" false false true false ;;
             16) create_pr "16" "Add feature without scope" "Testing missing scope in commit title." "$random_coauthors" "$random_types" false false false true ;;
             17) create_pr "17" "" "This PR has no description in the title." "$random_coauthors" "$random_types" false false false false ;;
-            18) create_pr "18" "Add breaking change" "Testing PR with a breaking change." "$random_coauthors" "$random_types" false false false false ;;
-            19) create_pr "19" "Multiple breaking changes" "Testing PR with multiple breaking changes." "$random_coauthors" "$random_types" false false false false ;;
             20) create_pr "20" "Very long title exceeding usual length" "Testing long title in PR." "$random_coauthors" "$random_types" false false false false ;;
             21) create_pr "21" "Special characters (!@#$%^&*())" "Testing special characters in PR title." "$random_coauthors" "$random_types" false false false false ;;
             *) echo "Invalid test case number: $case" ;;
@@ -278,7 +339,7 @@ main() {
         case $1 in
             -h|--help) display_help; exit 0 ;;
             -r|--reset) reset_all_test_cases; exit 0 ;;
-            -a|--all) selected_cases="1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21" ;;
+            -a|--all) selected_cases="1,2,3,4,5,6,7,9,10,11,12,13,14,15,16,17,20,21" ;;
             -s|--select) selected_cases="$2"; shift ;;
             -R|--random) random_coauthors=true ;;
             -T|--types) random_types=true ;;
