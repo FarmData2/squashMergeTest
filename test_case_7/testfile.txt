@@ -1,0 +1,1 @@
+Change for: [BREAKING CHANGE] docs(school): Multiple breaking changes and co-authors
