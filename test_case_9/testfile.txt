@@ -1,0 +1,1 @@
+Change for: custom(school): Test invalid type
