@@ -9,7 +9,14 @@ export GPG_TTY
 # Valid types and scopes for conventional commits
 VALID_TYPES=("build" "chore" "ci" "docs" "feat" "fix" "perf" "refactor" "style" "test")
 VALID_SCOPES=("dev" "comp" "lib" "fd2" "examples" "school" "none")
-COAUTHORS=("chermsit@dickinson.edu" "braught@dickinson.edu" "jmac@dickinson.edu" "goblew@dickinson.edu" "ferlandm@dickinson.edu" "kimbo@dickinson.edu")
+COAUTHORS=(
+    "<Grant Braught> <braught@dickinson.edu>"
+    "<John MacCormick> <jmac@dickinson.edu>"
+    "<William Goble> <goblew@dickinson.edu>"
+    "<M Ferland> <ferlandm@dickinson.edu>"
+    "<Boosung Kim> <kimbo@dickinson.edu>"
+    "<Ty Chermsirivatana> <chermsit@dickinson.edu>"
+)
 
 # Helper functions
 get_random_element() {
@@ -155,28 +162,63 @@ create_pr() {
     mkdir -p "test_case_${case}" && echo "Change for: $pr_title" >> "test_case_${case}/testfile.txt"
     git add "test_case_${case}" && git commit -m "$(generate_title "Initial commit" "$rand_types" "$invalid_type" "$invalid_scope" "$no_type" "$no_scope")"
 
-    # Additional commit message customization for specific cases
+    # Initial commit with appropriate metadata
+    local commit_message=$(generate_title "Initial commit" "$rand_types" "$invalid_type" "$invalid_scope" "$no_type" "$no_scope")
+    
+    # Add case-specific metadata to initial commit
     case "$case" in
-        2)
-            git add . && git commit -m "feat(docs): breaking change" -m "BREAKING CHANGE: Commit only breaking change"
-            ;;
-        3)
-            git add . && git commit -m "feat(docs): breaking change" -m "BREAKING CHANGE: Commit breaking change"
-            ;;
-        5)
+        4|5|6)
             if [ "$rand_coauthors" = true ]; then
                 random_coauthor=$(get_random_element COAUTHORS)
-                git add . && git commit -m "feat(docs): co-author test" -m "Co-authored-by: ${random_coauthor}"
+                commit_message="$commit_message
+
+Co-authored-by: ${random_coauthor}"
             else
-                git add . && git commit -m "feat(docs): co-author test" -m "Co-authored-by: ${COAUTHORS[0]}"
+                coauthor_index=$([ "$case" = "4" ] && echo 0 || echo 1)
+                commit_message="$commit_message
+
+Co-authored-by: ${COAUTHORS[$coauthor_index]}"
             fi
             ;;
-        6)
+        7)
+            commit_message="$commit_message
+
+Co-authored-by: ${COAUTHORS[0]}
+
+Co-authored-by: ${COAUTHORS[1]}"
+            ;;
+        11)
             if [ "$rand_coauthors" = true ]; then
                 random_coauthor=$(get_random_element COAUTHORS)
-                git add . && git commit -m "feat(docs): co-author test" -m "Co-authored-by: ${random_coauthor}"
+                commit_message="$commit_message
+
+Co-authored-by: ${random_coauthor}"
             else
-                git add . && git commit -m "feat(docs): co-author test" -m "Co-authored-by: ${COAUTHORS[1]}"
+                commit_message="$commit_message
+
+Co-authored-by: ${COAUTHORS[0]}"
+            fi
+            ;;
+        19)
+            commit_message="$commit_message
+
+Co-authored-by: ${COAUTHORS[0]}"
+            ;;
+    esac
+
+    # Additional commit message customization for specific cases
+    case "$case" in
+        5|6)
+            if [ "$rand_coauthors" = true ]; then
+                random_coauthor=$(get_random_element COAUTHORS)
+                git add . && git commit -m "feat(docs): co-author test
+
+Co-authored-by: ${random_coauthor}"
+            else
+                coauthor_index=$([ "$case" = "5" ] && echo 0 || echo 1)
+                git add . && git commit -m "feat(docs): co-author test
+
+Co-authored-by: ${COAUTHORS[$coauthor_index]}"
             fi
             ;;
         7)
