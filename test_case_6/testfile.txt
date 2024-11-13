@@ -1,0 +1,1 @@
+Change for: docs(comp): Co-authors in both PR and commits
