@@ -1,1 +1,2 @@
 Change for: custom(xyz): Invalid type and scope test
+Additional change for test case 7
