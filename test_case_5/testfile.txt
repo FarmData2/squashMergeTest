@@ -1,0 +1,1 @@
+Change for: test(examples): Co-author only in commit message
