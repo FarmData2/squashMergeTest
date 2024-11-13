@@ -1,1 +1,2 @@
 Change for: test(school): Breaking change only in commit message
+Additional change for test case 2
