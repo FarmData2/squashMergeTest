@@ -1,0 +1,1 @@
+Change for: chore(lib): Special characters (!@#$%^&*())
