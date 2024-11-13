@@ -1,1 +1,2 @@
 Change for: refactor(examples): Breaking changes in both PR and commits
+Additional change for test case 3
