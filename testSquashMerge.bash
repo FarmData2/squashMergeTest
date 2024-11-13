@@ -9,7 +9,14 @@ export GPG_TTY
 # Valid types and scopes for conventional commits
 VALID_TYPES=("build" "chore" "ci" "docs" "feat" "fix" "perf" "refactor" "style" "test")
 VALID_SCOPES=("dev" "comp" "lib" "fd2" "examples" "school" "none")
-COAUTHORS=("chermsit@dickinson.edu" "braught@dickinson.edu" "jmac@dickinson.edu" "goblew@dickinson.edu" "ferlandm@dickinson.edu" "kimbo@dickinson.edu")
+COAUTHORS=(
+    "Grant Braught <braught@dickinson.edu>"
+    "John MacCormick <jmac@dickinson.edu>"
+    "William Goble <goblew@dickinson.edu>"
+    "Matt Ferland <ferlandm@dickinson.edu>"
+    "Boosung Kim <kimbo@dickinson.edu>"
+    "Ty Chermsirivatana <chermsit@dickinson.edu>"
+)
 
 # Helper functions
 get_random_element() {
