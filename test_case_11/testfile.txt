@@ -1,1 +1,0 @@
-Change for: [BREAKING CHANGE] test(comp): Verbose edge case with multiple formats
