@@ -1,0 +1,1 @@
+Change for: [BREAKING CHANGE] feat(school): Add breaking change
