@@ -1,0 +1,1 @@
+Change for: test123(random): Invalid type and scope test
