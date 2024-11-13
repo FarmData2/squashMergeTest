@@ -1,0 +1,1 @@
+Change for: [BREAKING CHANGE] fix(comp): Verbose edge case with multiple formats
