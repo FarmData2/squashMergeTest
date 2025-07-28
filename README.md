@@ -1,30 +1,34 @@
-# Squash Merge PR Script Documentation
+# Squash Merge PR Script
 
 ## Overview
 
-This documentation covers two Bash scripts:
+This repository contains automated tools for managing pull request squash merges with conventional commit formatting.
 
-1. `squashMergePR.bash`: The main script for squash merging pull requests with conventional commit messages.
-2. `test_squashMergePR.bash`: A testing script to create test cases for the main script.
+### Scripts
+
+1. **`squashMergePR.bash`** - Main script for squash merging PRs with conventional commit messages
+2. **`testSquashMerge.bash`** - Test case generator for creating various PR scenarios
 
 ## Main Script: squashMergePR.bash
 
 ### Purpose
 
-The `squashMergePR.bash` script automates the process of squash merging pull requests (PRs) while ensuring the commit message follows the conventional commit format. It handles various scenarios, including breaking changes and co-authors.
+Automates squash merging of pull requests while ensuring commit messages follow conventional commit format. Handles breaking changes, co-authors, and various edge cases.
 
 ### Features
 
 - Fetches PR details using GitHub CLI
-- Parses PR title to extract type, scope, and description
-- Handles breaking changes and co-authors
-- Allows manual editing of the commit message before merging
-- Performs squash merge using GitHub CLI
+- Parses PR titles to extract type, scope, and description
+- Handles breaking changes and co-authors from both PR descriptions and commit messages
+- Interactive commit message editing before merge
+- Validates conventional commit format components
+- Supports both HTTPS and SSH GitHub repository URLs
 
 ### Prerequisites
 
 - GitHub CLI (`gh`) installed and authenticated
-- `jq` command-line JSON processor installed
+- `jq` command-line JSON processor
+- Git repository with GitHub remote
 
 ### Usage
 
@@ -34,236 +38,183 @@ The `squashMergePR.bash` script automates the process of squash merging pull req
 
 ### Options
 
-- `--type <type>`: Type of commit (e.g., feat, fix)
-- `--scope <scope>`: Scope of the commit (e.g., lib, none)
-- `--description <description>`: Description of the commit
-- `--body <body>`: Body of the commit message
-- `--breaking-change <yes|no>`: Specify if the commit introduces a breaking change
-- `--breaking-change-description <desc>`: Description of the breaking change
-- `--repo <GitHub repo URL>`: GitHub repository URL
-- `--pr <PR number>`: The number of the pull request to merge
-- `--coauthor <co-authors>`: Specify co-authors for the commit
-- `--help`: Display help message and exit
+- `--type <type>`: Commit type (feat, fix, docs, etc.)
+- `--scope <scope>`: Commit scope (comp, lib, dev, etc.)
+- `--description <description>`: Commit description
+- `--body <body>`: Commit message body
+- `--breaking-change <yes|no>`: Breaking change flag
+- `--breaking-change-description <desc>`: Breaking change description
+- `--repo <GitHub repo URL>`: Repository URL
+- `--pr <PR number>`: Pull request number
+- `--coauthor <co-authors>`: Co-authors for the commit
+- `--help`: Display help message
 
-### Workflow
+### Valid Types
 
-1. The script checks for dependencies (`gh` and `jq`)
-2. It authenticates with GitHub CLI if not already done
-3. It fetches PR details based on the provided PR number
-4. The PR title is parsed to extract type, scope, and description
-5. Breaking changes and co-authors are extracted from commit messages
-6. The user is prompted to review and optionally edit the commit message
-7. The script performs a squash merge using the GitHub CLI
+`build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `style`, `test`
 
-# Pull Request Test Script Documentation
+### Valid Scopes
 
-## Overview
+`dev`, `comp`, `lib`, `fd2`, `examples`, `school`, `none`
 
-This document details a comprehensive test script for validating pull request (PR) handling with conventional commits, breaking changes, and co-authors. The script creates various test cases to ensure proper handling of different PR scenarios.
+## Test Script: testSquashMerge.bash
 
-## Prerequisites
+### Purpose
 
-- Git installed and configured
-- GitHub CLI (`gh`) installed and authenticated
-- Bash shell environment
-- Repository access with PR creation permissions
+Creates test PRs with various scenarios to validate the main script functionality.
 
-## Script Configuration
+### Test Cases
 
-### Valid Types and Scopes
+1. **Breaking change in PR description only**
+2. **Breaking change in commit messages only**
+3. **Breaking changes in both locations**
+4. **Co-authors in PR description only**
+5. **Co-authors in commit messages only**
+6. **Co-authors in both locations**
+7. **Invalid type and scope**
+8. **Missing type and scope**
+9. **Invalid type only**
+10. **Invalid scope only**
+11. **Missing type only**
+12. **Missing scope only**
+13. **Empty title**
+14. **Very long title**
+15. **Special characters in title**
+
+### Usage
 
 ```bash
-VALID_TYPES=("build" "chore" "ci" "docs" "feat" "fix" "perf" "refactor" "style" "test")
-VALID_SCOPES=("dev" "comp" "lib" "fd2" "examples" "school" "none")
+./testSquashMerge.bash [OPTIONS]
 ```
 
-### Co-Authors Configuration
-The script includes a predefined list of co-authors for testing collaboration scenarios:
-```bash
-COAUTHORS=(
-    "Grant Braught <braught@dickinson.edu>"
-    "John MacCormick <jmac@dickinson.edu>"
-    "William Goble <goblew@dickinson.edu>"
-    "Matt Ferland <ferlandm@dickinson.edu>"
-    "Boosung Kim <kimbo@dickinson.edu>"
-    "Ty Chermsirivatana <chermsit@dickinson.edu>"
-)
-```
+### Options
 
-## Test Cases
-
-The script includes 15 distinct test cases, each designed to test specific aspects of PR handling:
-
-### 1. Breaking Change in PR Description (Case 1)
-- **Purpose**: Tests handling of breaking changes mentioned only in PR description
-- **Behavior**: Creates a PR with breaking change notation in description only
-- **Expected**: System should detect and handle breaking change from PR description
-
-### 2. Breaking Change in Commit Message (Case 2)
-- **Purpose**: Tests breaking changes in commit messages only
-- **Behavior**: Creates commits with breaking change notations
-- **Expected**: System should extract breaking changes from commit messages
-
-### 3. Breaking Changes in Both Locations (Case 3)
-- **Purpose**: Tests handling of breaking changes in both PR and commits
-- **Behavior**: Includes breaking changes in both PR description and commits
-- **Expected**: System should properly consolidate breaking changes from both sources
-
-### 4. Co-author in PR Description (Case 4)
-- **Purpose**: Tests co-author handling in PR description
-- **Behavior**: Adds co-author information only in PR description
-- **Expected**: System should correctly attribute co-authorship from PR
-
-### 5. Co-author in Commit Message (Case 5)
-- **Purpose**: Tests co-author handling in commits
-- **Behavior**: Includes co-author information in commit messages
-- **Expected**: System should extract co-author information from commits
-
-### 6. Co-authors in Both Locations (Case 6)
-- **Purpose**: Tests co-author handling from multiple sources
-- **Behavior**: Includes co-authors in both PR description and commits
-- **Expected**: System should properly combine co-author information
-
-### 7. Invalid Type and Scope (Case 7)
-- **Purpose**: Tests handling of invalid conventional commit format
-- **Behavior**: Creates PR with invalid type and scope
-- **Expected**: System should detect and handle invalid format appropriately
-
-### 8. Missing Type and Scope (Case 8)
-- **Purpose**: Tests handling of incomplete conventional commit format
-- **Behavior**: Creates PR without type and scope
-- **Expected**: System should handle missing components gracefully
-
-### 9. Invalid Type Only (Case 9)
-- **Purpose**: Tests handling of invalid commit type
-- **Behavior**: Creates PR with invalid type but valid scope
-- **Expected**: System should detect invalid type and respond appropriately
-
-### 10. Invalid Scope Only (Case 10)
-- **Purpose**: Tests handling of invalid scope
-- **Behavior**: Creates PR with valid type but invalid scope
-- **Expected**: System should detect invalid scope and respond appropriately
-
-### 11. Missing Type Only (Case 11)
-- **Purpose**: Tests handling of missing type
-- **Behavior**: Creates PR without type but with scope
-- **Expected**: System should detect missing type and handle accordingly
-
-### 12. Missing Scope Only (Case 12)
-- **Purpose**: Tests handling of missing scope
-- **Behavior**: Creates PR with type but without scope
-- **Expected**: System should handle missing scope appropriately
-
-### 13. Empty Title Test (Case 13)
-- **Purpose**: Tests handling of empty PR titles
-- **Behavior**: Creates PR with empty title
-- **Expected**: System should handle empty titles gracefully
-
-### 14. Long Title Test (Case 14)
-- **Purpose**: Tests handling of very long PR titles
-- **Behavior**: Creates PR with exceptionally long title
-- **Expected**: System should handle long titles appropriately
-
-### 15. Special Characters Test (Case 15)
-- **Purpose**: Tests handling of special characters
-- **Behavior**: Creates PR with special characters in title
-- **Expected**: System should properly handle special characters
-
-## Script Usage
-
-### Basic Usage
-```bash
-./test_squashMergePR.bash [OPTIONS]
-```
-
-### Available Options
-- `-h, --help`: Display help information
-- `-r, --reset`: Reset all test cases (removes branches and directories)
+- `-h, --help`: Display help
+- `-r, --reset`: Reset all test cases
 - `-a, --all`: Run all test cases
-- `-s, --select CASES`: Run specific test cases (comma-separated list)
+- `-s, --select CASES`: Run specific test cases (comma-separated)
 - `-R, --random`: Use random co-authors
 - `-T, --types`: Use random types/scopes
 - `--full-random`: Use both random co-authors and types/scopes
 
-### Examples
-```bash
-# Run all test cases
-./test_squashMergePR.bash -a
+## Testing
 
-# Run specific test cases
-./test_squashMergePR.bash -s 1,2,3
+### BATS Testing Framework
 
-# Run with random co-authors
-./test_squashMergePR.bash -a -R
+The project uses BATS (Bash Automated Testing System) for comprehensive testing.
 
-# Reset all test cases
-./test_squashMergePR.bash -r
+### Test Structure
+
+```
+test/
+├── bats/                    # BATS core (submodule)
+├── test_helper/
+│   ├── bats-support/        # BATS support library (submodule)
+│   └── bats-assert/         # BATS assert library (submodule)
+├── test_helper.bash         # Test helper functions
+├── test_squashMergePR.bats  # Main script tests
+├── test_helpers.bats        # Helper script tests
+├── test_integration.bats    # Integration tests
+└── run_tests.sh            # Test runner script
 ```
 
-## Important Functions
+### Running Tests
 
-### generate_title()
-Generates PR titles based on test parameters:
-- Handles valid/invalid types and scopes
-- Supports missing components
-- Follows conventional commit format
+```bash
+# Run all tests
+./test/run_tests.sh
 
-### create_pr()
-Creates test PRs with specified parameters:
-- Generates branches
-- Creates test files
-- Makes commits with appropriate messages
-- Handles breaking changes and co-authors
-- Creates GitHub PR
+# Run specific test file
+cd test && ./bats/bin/bats test_squashMergePR.bats
+```
 
-### run_selected_tests()
-Manages test case execution:
-- Processes test case selection
-- Handles random features
-- Executes appropriate test cases
+### Test Categories
 
-### reset_all_test_cases()
-Cleans up test environment:
-- Removes test branches
-- Deletes test directories
-- Resets to main branch
+1. **Unit Tests** - Individual function testing
+2. **Integration Tests** - Script interaction testing
+3. **Edge Case Tests** - Error handling and boundary conditions
+4. **Format Validation Tests** - Conventional commit format compliance
 
-## Best Practices
+## Setup
 
-1. **Test Environment**
-   - Use a dedicated test repository
-   - Ensure clean state before running tests
-   - Regular cleanup using reset function
+### Initial Setup
 
-2. **Test Execution**
-   - Run all tests before making changes
-   - Test specific cases after modifications
-   - Verify results manually
+```bash
+# Clone repository
+git clone <repository-url>
+cd <repository-name>
 
-3. **Maintenance**
-   - Keep co-author list updated
-   - Maintain valid types and scopes
-   - Regular script updates
+# Initialize submodules
+git submodule update --init --recursive
 
-## Troubleshooting
+# Make scripts executable
+chmod +x squashMergePR.bash testSquashMerge.bash test/run_tests.sh
+```
 
-1. **Authentication Issues**
-   - Verify GitHub CLI authentication
-   - Check repository permissions
-   - Ensure SSH keys are configured
+### GitHub CLI Setup
 
-2. **Failed PRs**
-   - Check branch conflicts
-   - Verify GitHub API access
-   - Review error messages
+```bash
+# Install GitHub CLI
+# Follow instructions at: https://cli.github.com/
 
-3. **Clean Up**
-   - Use reset option regularly
-   - Manual cleanup if needed
-   - Check remote branches
+# Authenticate
+gh auth login
+```
+
+## Workflow
+
+### Basic Usage
+
+1. Navigate to your Git repository
+2. Run the script with a PR number:
+   ```bash
+   ./squashMergePR.bash --pr 123
+   ```
+3. Review the generated commit message
+4. Choose to accept, edit, or cancel
+5. Script performs the squash merge
+
+### Testing New Features
+
+1. Create test cases using the test script:
+   ```bash
+   ./testSquashMerge.bash -s 1,2,3
+   ```
+2. Test the main script against generated PRs
+3. Run the test suite to ensure functionality:
+   ```bash
+   ./test/run_tests.sh
+   ```
+
+## Error Handling
+
+The scripts handle various error conditions:
+
+- Missing dependencies (gh, jq)
+- Invalid PR numbers or states
+- Malformed repository URLs
+- Invalid conventional commit formats
+- Network connectivity issues
+
+## Contributing
+
+### Adding Tests
+
+1. Add test cases to appropriate `.bats` files
+2. Follow existing test patterns
+3. Run test suite to verify changes
+4. Update documentation as needed
+
+### Modifying Scripts
+
+1. Update relevant functions
+2. Add corresponding tests
+3. Run full test suite
+4. Update README if interface changes
 
 ## References
 
-- Conventional Commits: https://www.conventionalcommits.org/
-- GitHub CLI documentation: https://cli.github.com/manual/
-- Git documentation: https://git-scm.com/doc
+- [Conventional Commits](https://www.conventionalcommits.org/)
+- [GitHub CLI Documentation](https://cli.github.com/manual/)
+- [BATS Testing Framework](https://github.com/bats-core/bats-core)
+- [Git Documentation](https://git-scm.com/doc)

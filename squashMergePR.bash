@@ -328,17 +328,17 @@ parsePrTitle() {
     local scope=""
     local description=""
     # Regex to fit conventional commit format, including scope only and empty description
-    if [[ $pr_title =~ ^([a-z]+)\(([a-z]+)\):(.*)$ ]]; then
+    if [[ $pr_title =~ ^([a-z]+)\(([a-z0-9]+)\):(.*)$ ]]; then
         type="${BASH_REMATCH[1]}"
         scope="${BASH_REMATCH[2]}"
         description="${BASH_REMATCH[3]#"${BASH_REMATCH[3]%%[![:space:]]*}"}" 
-    elif [[ $pr_title =~ ^([a-z]+)\(([a-z]+)\)$ ]]; then
+    elif [[ $pr_title =~ ^([a-z]+)\(([a-z0-9]+)\)$ ]]; then
         type="${BASH_REMATCH[1]}"
         scope="${BASH_REMATCH[2]}"
-    elif [[ $pr_title =~ ^\(([a-z]+)\):(.*)$ ]]; then
+    elif [[ $pr_title =~ ^\(([a-z0-9]+)\):(.*)$ ]]; then
         scope="${BASH_REMATCH[1]}"
         description="${BASH_REMATCH[2]#"${BASH_REMATCH[2]%%[![:space:]]*}"}" 
-    elif [[ $pr_title =~ ^\(([a-z]+)\)$ ]]; then
+    elif [[ $pr_title =~ ^\(([a-z0-9]+)\)$ ]]; then
         scope="${BASH_REMATCH[1]}"
     elif [[ $pr_title =~ ^([a-z]+):(.*)$ ]]; then
         type="${BASH_REMATCH[1]}"
@@ -553,73 +553,97 @@ prepPrDetails() {
 }
 
 
-# Main script execution
-checkDependencies
-checkGhCliAuth
-
-# Extract repository info from URL or current git context
-if [[ -n "$REPO_URL" ]]; then
-    # Remove .git suffix if present
-    REPO_URL="${REPO_URL%.git}"
-    if [[ "$REPO_URL" =~ git@github.com:(.+)/(.+) ]]; then
-        # SSH format URL
-        REPO="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
-    elif [[ "$REPO_URL" =~ https://github.com/(.+)/(.+) ]]; then
-        # HTTPS format URL
-        REPO="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+# Function to extract repository info from URL or current git context
+extractRepoInfo() {
+    if [[ -n "$REPO_URL" ]]; then
+        # Remove .git suffix if present
+        REPO_URL="${REPO_URL%.git}"
+        if [[ "$REPO_URL" =~ git@github.com:(.+)/(.+) ]]; then
+            # SSH format URL
+            REPO="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+        elif [[ "$REPO_URL" =~ https://github.com/(.+)/(.+) ]]; then
+            # HTTPS format URL
+            REPO="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+        else
+            echo -e "${RED}Error: Unable to parse GitHub repository URL.${NC}"
+            return 1
+        fi
+    elif git rev-parse --git-dir > /dev/null 2>&1; then
+        # Attempt to extract from current git repository if in a git directory
+        REPO_URL=$(git remote get-url origin 2>/dev/null)
+        if [[ -n "$REPO_URL" ]]; then
+            # Remove .git suffix if present
+            REPO_URL="${REPO_URL%.git}"
+            if [[ "$REPO_URL" =~ git@github.com:(.+)/(.+) ]]; then
+                REPO="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+            elif [[ "$REPO_URL" =~ https://github.com/(.+)/(.+) ]]; then
+                REPO="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+            else
+                echo -e "${RED}Error: Unable to parse origin URL of the current git repository.${NC}"
+                return 1
+            fi
+        else
+            echo -e "${RED}Error: No remote origin found in git repository.${NC}"
+            return 1
+        fi
     else
-        echo -e "${RED}Error: Unable to parse GitHub repository URL.${NC}"
-        exit 1
+        echo -e "${RED}Error: Repository URL is required if not in a git repository folder.${NC}"
+        return 1
     fi
-elif git rev-parse --git-dir > /dev/null 2>&1; then
-    # Attempt to extract from current git repository if in a git directory
-    REPO_URL=$(git remote get-url origin)
-    # Remove .git suffix if present
-    REPO_URL="${REPO_URL%.git}"
-    if [[ "$REPO_URL" =~ git@github.com:(.+)/(.+) ]]; then
-        REPO="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
-    elif [[ "$REPO_URL" =~ https://github.com/(.+)/(.+) ]]; then
-        REPO="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
-    else
-        echo -e "${RED}Error: Unable to parse origin URL of the current git repository.${NC}"
-        exit 1
-    fi
-else
-    echo -e "${RED}Error: Repository URL is required if not in a git repository folder.${NC}"
-    exit 1
-fi
-
-# Function to list open PRs
-
-list_prs() {
-    local prs
-    prs=$(gh pr list --json number,title,headRefName --jq '.[] | "\(.number)|\(.title)|\(.headRefName)"')
-    
-    if [ -z "$prs" ]; then
-        echo "No open pull requests found."
-        return
-    fi
-
-    echo "Open Pull Requests:"
-    echo "$prs" | while IFS='|' read -r number title branch; do
-        printf "PR #%s: %s (%s)\n" "$number" "$title" "$branch"
-    done
 }
 
-# Check if PR_NUMBER is defined via cli flag to avoid call if not needed
-if [ -z "$PR_NUMBER" ]; then
-    list_prs
+# Extract repository info when script is sourced or executed (only if in git directory)
+if git rev-parse --git-dir >/dev/null 2>&1; then
+    extractRepoInfo 2>/dev/null || true
 fi
 
-prepPrDetails
+# Main function to execute the script
+main() {
+    # Main script execution
+    checkDependencies
+    checkGhCliAuth
 
-# Perform the squash merge
-squashMergePR "$PR_NUMBER" "$CONV_COMMIT" "$REPO"
+    # Ensure repository info is available
+    if [[ -z "$REPO" ]]; then
+        extractRepoInfo || exit 1
+    fi
 
-# Check the result of squash merge
-if [ $? -eq 0 ]; then
-    echo -e "${GREEN}Pull Request #$PR_NUMBER has been successfully merged.${NC}"
-else
-    echo -e "${RED}Failed to merge Pull Request #$PR_NUMBER. Please check the error message above and try again.${NC}"
-    exit 1
+    # Function to list open PRs
+    list_prs() {
+        local prs
+        prs=$(gh pr list --json number,title,headRefName --jq '.[] | "\(.number)|\(.title)|\(.headRefName)"')
+        
+        if [ -z "$prs" ]; then
+            echo "No open pull requests found."
+            return
+        fi
+
+        echo "Open Pull Requests:"
+        echo "$prs" | while IFS='|' read -r number title branch; do
+            printf "PR #%s: %s (%s)\n" "$number" "$title" "$branch"
+        done
+    }
+
+    # Check if PR_NUMBER is defined via cli flag to avoid call if not needed
+    if [ -z "$PR_NUMBER" ]; then
+        list_prs
+    fi
+
+    prepPrDetails
+
+    # Perform the squash merge
+    squashMergePR "$PR_NUMBER" "$CONV_COMMIT" "$REPO"
+
+    # Check the result of squash merge
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}Pull Request #$PR_NUMBER has been successfully merged.${NC}"
+    else
+        echo -e "${RED}Failed to merge Pull Request #$PR_NUMBER. Please check the error message above and try again.${NC}"
+        return 1
+    fi
+}
+
+# Only run main function if script is executed directly, not sourced
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
 fi
