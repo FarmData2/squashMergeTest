@@ -66,7 +66,7 @@ teardown() {
     "
     [ "$status" -eq 0 ]
     [[ "$output" == *"found"* ]]
-    
+
     run bash -c "
         source $SCRIPT_PATH
         if elementInArray 'invalid' 'feat' 'fix' 'docs'; then
@@ -236,22 +236,22 @@ teardown() {
 @test "convertToConventionalCommit function includes co-authors" {
     run bash -c "
         source $SCRIPT_PATH
-        convertToConventionalCommit 'feat' 'comp' 'add feature' '' '' 'Co-authored-by: John Doe <john@example.com>'
+        convertToConventionalCommit 'feat' 'comp' 'add feature' '' '' 'Co-authored-by: Grant Braught <braught@dickinson.edu>'
     "
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Co-authored-by: John Doe <john@example.com>"* ]]
+    [[ "$output" == *"Co-authored-by: Grant Braught <braught@dickinson.edu>"* ]]
 }
 
 @test "convertToConventionalCommit function handles all components" {
     run bash -c "
         source $SCRIPT_PATH
-        convertToConventionalCommit 'feat' 'comp' 'add feature' 'Body text' 'BREAKING CHANGE: This breaks things' 'Co-authored-by: John Doe <john@example.com>'
+        convertToConventionalCommit 'feat' 'comp' 'add feature' 'Body text' 'BREAKING CHANGE: This breaks things' 'Co-authored-by: Ty Chermsirivatana <chermsit@dickinson.edu>'
     "
     [ "$status" -eq 0 ]
     [[ "$output" == *"feat(comp): add feature"* ]]
     [[ "$output" == *"Body text"* ]]
     [[ "$output" == *"BREAKING CHANGE: This breaks things"* ]]
-    [[ "$output" == *"Co-authored-by: John Doe <john@example.com>"* ]]
+    [[ "$output" == *"Co-authored-by: Ty Chermsirivatana <chermsit@dickinson.edu>"* ]]
 }
 
 @test "VALID_TYPES array contains expected values" {
@@ -283,32 +283,32 @@ teardown() {
 @test "script handles git repository URL parsing" {
     cd "$TEST_TEMP_DIR"
     git init >/dev/null 2>&1
-    git remote add origin "https://github.com/user/repo.git"
-    
+    git remote add origin "https://github.com/farmdata2/farmdata2.git"
+
     run bash -c "
         cd $TEST_TEMP_DIR
         source $SCRIPT_PATH 2>/dev/null
         echo \$REPO
     "
-    [[ "$output" == *"user/repo"* ]]
+    [[ "$output" == *"farmdata2/farmdata2"* ]]
 }
 
 @test "script handles SSH git repository URL parsing" {
     cd "$TEST_TEMP_DIR"
     git init >/dev/null 2>&1
-    git remote add origin "git@github.com:user/repo.git"
-    
+    git remote add origin "git@github.com:farmdata2/farmdata2.git"
+
     run bash -c "
         cd $TEST_TEMP_DIR
         source $SCRIPT_PATH 2>/dev/null
         echo \$REPO
     "
-    [[ "$output" == *"user/repo"* ]]
+    [[ "$output" == *"farmdata2/farmdata2"* ]]
 }
 
 @test "script exits when not in git repo and no repo URL provided" {
     cd "$TEST_TEMP_DIR"
-    
+
     run "$SCRIPT_PATH" --pr 123
     [ "$status" -eq 1 ]
     [[ "$output" == *"GitHub CLI login failed"* || "$output" == *"Repository URL is required"* ]]
@@ -332,7 +332,7 @@ Some description
 BREAKING CHANGE: This breaks backward compatibility
 
 Co-authored-by: John Doe <john@example.com>"
-    
+
     breaking_change=$(echo "$commit_msg" | grep "BREAKING CHANGE:" | head -1)
     [[ "$breaking_change" == "BREAKING CHANGE: This breaks backward compatibility" ]]
 }
@@ -342,12 +342,12 @@ Co-authored-by: John Doe <john@example.com>"
 
 Some description
 
-Co-authored-by: John Doe <john@example.com>
-Co-authored-by: Jane Smith <jane@example.com>"
-    
+Co-authored-by: Grant Braught <braught@dickinson.edu>
+Co-authored-by: John MacCormick <jmac@dickinson.edu>"
+
     co_authors=$(echo "$commit_msg" | grep "Co-authored-by:")
-    [[ "$co_authors" == *"John Doe"* ]]
-    [[ "$co_authors" == *"Jane Smith"* ]]
+    [[ "$co_authors" == *"Grant Braught"* ]]
+    [[ "$co_authors" == *"John MacCormick"* ]]
 }
 
 @test "multiple breaking changes handling" {
@@ -355,7 +355,7 @@ Co-authored-by: Jane Smith <jane@example.com>"
 
 BREAKING CHANGE: First breaking change
 BREAKING CHANGE: Second breaking change"
-    
+
     breaking_changes=$(echo "$commit_msg" | grep "BREAKING CHANGE:")
     [ $(echo "$breaking_changes" | wc -l) -eq 2 ]
 }
@@ -390,7 +390,7 @@ BREAKING CHANGE: Second breaking change"
     "
     [ "$status" -eq 0 ]
     [[ "$output" == *"found"* ]]
-    
+
     run bash -c "
         source $SCRIPT_PATH
         if elementInArray 'Feat' 'feat' 'fix' 'docs'; then
@@ -412,7 +412,7 @@ BREAKING CHANGE: Second breaking change"
         "chore: maintenance|chore||maintenance"
         "test(fd2): add tests|test|fd2|add tests"
     )
-    
+
     for case in "${test_cases[@]}"; do
         input="${case%%|*}"
         expected="${case#*|}"
@@ -445,24 +445,24 @@ BREAKING CHANGE: Second breaking change"
 
 @test "repo URL validation with various formats" {
     test_urls=(
-        "https://github.com/user/repo.git"
-        "https://github.com/user/repo"
-        "git@github.com:user/repo.git"
-        "git@github.com:user/repo"
+        "https://github.com/farmdata2/farmdata2.git"
+        "https://github.com/farmdata2/farmdata2"
+        "git@github.com:farmdata2/farmdata2.git"
+        "git@github.com:farmdata2/farmdata2"
     )
-    
+
     for url in "${test_urls[@]}"; do
         cd "$TEST_TEMP_DIR"
         rm -rf .git
         git init >/dev/null 2>&1
         git remote add origin "$url" >/dev/null 2>&1
-        
+
         run bash -c "
             cd $TEST_TEMP_DIR
             source $SCRIPT_PATH 2>/dev/null
             echo \$REPO
         "
-        [[ "$output" == *"user/repo"* ]]
+        [[ "$output" == *"farmdata2/farmdata2"* ]]
     done
 }
 
@@ -470,7 +470,7 @@ BREAKING CHANGE: Second breaking change"
     cd "$TEST_TEMP_DIR"
     git init >/dev/null 2>&1
     git remote add origin "invalid-url"
-    
+
     run "$SCRIPT_PATH" --pr 123
     [ "$status" -eq 1 ]
     [[ "$output" == *"Unable to parse"* ]]
