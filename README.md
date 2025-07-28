@@ -113,8 +113,6 @@ test/
 │   └── bats-assert/         # BATS assert library (submodule)
 ├── test_helper.bash         # Test helper functions
 ├── test_squashMergePR.bats  # Main script tests
-├── test_helpers.bats        # Helper script tests
-├── test_integration.bats    # Integration tests
 └── run_tests.sh            # Test runner script
 ```
 
