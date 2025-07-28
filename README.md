@@ -183,7 +183,7 @@ gh auth login
 2. Test the main script against generated PRs
 3. Run the test suite to ensure functionality:
    ```bash
-   ./test/run_tests.sh
+   cd test/ && ./run_tests.sh
    ```
 
 ## Error Handling
