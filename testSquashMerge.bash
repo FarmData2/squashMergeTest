@@ -272,8 +272,8 @@ main() {
 
     while [[ $# -gt 0 ]]; do
         case $1 in
-            -h|--help) display_help; restore_current_state $had_changes; exit 0 ;;
-            -r|--reset) reset_all_test_cases; restore_current_state $had_changes; exit 0 ;;
+            -h|--help) display_help; exit 0 ;;
+            -r|--reset) reset_all_test_cases; exit 0 ;;
             -a|--all) selected_cases="1,2,3,4,5,6,7,8,9,10,11,12,13,14,15" ;;
             -s|--select) selected_cases="$2"; shift ;;
             -R|--random) random_coauthors=true ;;
