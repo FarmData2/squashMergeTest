@@ -119,19 +119,9 @@ test/
 ### Running Tests
 
 ```bash
-# Run all tests
-./test/run_tests.sh
-
-# Run specific test file
-cd test && ./bats/bin/bats test_squashMergePR.bats
+# Run tests (For some reason, it needs to run in the test directory. I'm likely missing out on some trivial relative import I can make static but until then!)
+cd test && ./run_tests.sh
 ```
-
-### Test Categories
-
-1. **Unit Tests** - Individual function testing
-2. **Integration Tests** - Script interaction testing
-3. **Edge Case Tests** - Error handling and boundary conditions
-4. **Format Validation Tests** - Conventional commit format compliance
 
 ## Setup
 
