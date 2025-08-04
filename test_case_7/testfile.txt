@@ -1,0 +1,2 @@
+Change for: unknown(invalid): Invalid type and scope test
+Additional change for test case 7
