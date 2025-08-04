@@ -207,7 +207,7 @@ teardown() {
 
 @test "convertToConventionalCommit function handles scope 'none'" {
     run bash -c "
-        source $SCRIPT_PATH
+        source \$SCRIPT_PATH
         convertToConventionalCommit 'feat' 'none' 'add feature' '' '' ''
     "
     [ "$status" -eq 0 ]
@@ -370,13 +370,14 @@ BREAKING CHANGE: Second breaking change"
     [ "$lines" -eq 1 ]
 }
 
-@test "whitespace trimming in commit message generation" {
+@test "whitespace preservation in commit message generation" {
     run bash -c "
         source $SCRIPT_PATH
         convertToConventionalCommit 'feat' 'comp' '  add feature  ' '  body with spaces  ' '' ''
     "
     [ "$status" -eq 0 ]
     [[ "$output" == *"feat(comp):   add feature  "* ]]
+    [[ "$output" == *"body with spaces"* ]]
 }
 
 @test "case sensitivity in type validation" {
@@ -474,4 +475,21 @@ BREAKING CHANGE: Second breaking change"
     run "$SCRIPT_PATH" --pr 123
     [ "$status" -eq 1 ]
     [[ "$output" == *"Unable to parse"* ]]
+}
+
+@test "duplicate co-author emails are handled correctly" {
+    run bash -c "
+        source \$SCRIPT_PATH
+        convertToConventionalCommit 'feat' 'comp' 'add feature' '' '' 'Co-authored-by: Test User <test@example.com>
+Co-authored-by: Test User <test@example.com>
+Co-authored-by: Another User <test@example.com>'
+    "
+    [ "$status" -eq 0 ]
+    
+    # Check that the co-author is present
+    [[ "$output" == *"Co-authored-by: Test User <test@example.com>"* ]]
+    
+    # Count occurrences of the email address - should only appear once due to deduplication
+    co_author_count=$(echo "$output" | grep -c "test@example.com")
+    [ "$co_author_count" -eq 1 ]
 }

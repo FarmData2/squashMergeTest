@@ -145,12 +145,14 @@ extractCommitInfo() {
 
     # Process co-authors
     declare -A unique_co_authors
+    declare -A unique_co_author_emails
     for author in "${co_authors[@]}"; do
         local author_email=$(echo "$author" | grep -oP '<\K[^>]+')
-        if [[ -n "$author_email" ]]; then
-            local username=$(echo "$author_email" | cut -d@ -f1)
+        if [[ -n "$author_email" ]] && [[ -z "${unique_co_author_emails[$author_email]}" ]]; then
+            local username=$(echo "$author" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*<.*//')
             formatted_author="Co-authored-by: $username <$author_email>"
             unique_co_authors["$author_email"]="$formatted_author"
+            unique_co_author_emails["$author_email"]=1
         fi
     done
 
@@ -184,7 +186,7 @@ convertToConventionalCommit() {
 
     # Construct the first line of the commit message
     commit_message="${type}"
-    if [[ "$scope" != "none" && -n "$scope" ]]; then
+    if [[ -n "$scope" && "$scope" != "none" ]]; then
         commit_message="${commit_message}(${scope})"
     fi
     commit_message="${commit_message}: ${title}"
@@ -220,19 +222,25 @@ ${breaking_changes}"
         fi
     fi
 
-    # Combine all co-authors
-    local all_co_authors=""
-    if [[ -n "$body_co_authors" ]]; then
-        all_co_authors="${body_co_authors}"
-    fi
-    if [[ -n "$co_authors" ]]; then
-        if [[ -n "$all_co_authors" ]]; then
-            all_co_authors="${all_co_authors}
-${co_authors}"
-        else
-            all_co_authors="${co_authors}"
+    # Combine all co-authors and remove duplicates
+    declare -A unique_co_authors_map
+    local all_co_authors_combined="$body_co_authors\n$co_authors"
+    
+    while IFS= read -r author; do
+        if [[ -n "$author" ]]; then
+            local email
+            email=$(echo "$author" | grep -oP '<\K[^>]+')
+            if [[ -n "$email" ]] && [[ -z "${unique_co_authors_map[$email]}" ]]; then
+                unique_co_authors_map["$email"]="$author"
+            fi
         fi
-    fi
+    done <<< "$all_co_authors_combined"
+
+    local all_co_authors=""
+    for email in "${!unique_co_authors_map[@]}"; do
+        all_co_authors+="${unique_co_authors_map[$email]}\n"
+    done
+    all_co_authors=$(echo -e "$all_co_authors" | sed '/^$/d') # Remove empty lines
 
     # Add breaking changes if present
     if [[ -n "$all_breaking_changes" ]]; then
@@ -248,19 +256,28 @@ ${all_breaking_changes}"
 ${all_co_authors}"
     fi
 
-    # Clean up excessive newlines while preserving required formatting. Be careful when modifying this. This is crucial for elimating newlines.
+    # Clean up excessive newlines while preserving required formatting
     commit_message=$(echo -e "$commit_message" | awk '
-        NR==1 {print; next}
+        BEGIN { blank = 1; line_num = 0 } # Start with blank=1 to remove leading newlines
         /^$/ {
             if (!blank) {
                 print
-                blank=1
+                blank = 1
             }
             next
         }
         {
-            blank=0
-            print
+            blank = 0
+            line_num++
+            if (line_num == 1) {
+                # Preserve whitespace in the first line (title)
+                print
+            } else {
+                # Trim whitespace from body lines
+                gsub(/^[[:space:]]+/, "")
+                gsub(/[[:space:]]+$/, "")
+                print
+            }
         }
     ')
 
@@ -398,7 +415,7 @@ checkPrTitleComponents() {
 
     if [ -z "$scope" ]; then
         result+="Missing: scope. "
-    elif [ "$scope" != "none" ] && ! elementInArray "$scope" "${VALID_SCOPES[@]}"; then
+    elif ! elementInArray "$scope" "${VALID_SCOPES[@]}"; then
         result+="Invalid: scope. "
     fi
 
@@ -439,9 +456,9 @@ prepPrDetails() {
             # Parse PR title
             IFS='|' read -r PARSED_TYPE PARSED_SCOPE PARSED_DESCRIPTION <<< "$(parsePrTitle "$PR_TITLE")"
 
-            # Extract commit info
-            IFS='|' read -r BREAKING_CHANGES CO_AUTHORS <<< "$(extractCommitInfo "$PR_NUMBER")"
-
+            # Extract commit info first to show current state
+            COMMIT_INFO=$(extractCommitInfo "$PR_NUMBER")
+            
             # Check PR title components
             TITLE_CHECK_RESULT=$(checkPrTitleComponents "$PARSED_TYPE" "$PARSED_SCOPE" "$PARSED_DESCRIPTION")
 
@@ -453,6 +470,13 @@ prepPrDetails() {
             echo -e "Changed Files: $PR_CHANGED_FILES"
             echo -e "Merge State Status: $PR_MERGE_STATE_STATUS"
             echo ""
+            
+            # Show extracted breaking changes and co-authors from commits
+            if [[ -n "$COMMIT_INFO" ]]; then
+                echo -e "${BLUE}Information extracted from PR commits:${NC}"
+                echo -e "${YELLOW}$COMMIT_INFO${NC}"
+                echo ""
+            fi
             
             if [ -n "$TITLE_CHECK_RESULT" ]; then
                 echo -e "${YELLOW}Issues with PR title:${NC}"
@@ -488,6 +512,29 @@ prepPrDetails() {
                 echo -e "${BLUE}type(scope): description${NC}"
             fi
 
+            # Ask for additional breaking changes and co-authors after showing what was extracted
+            read -p "Are there any additional breaking changes to add? (yes/no) [no]: " manual_breaking_change
+            if [[ "$manual_breaking_change" == "yes" ]]; then
+                read -p "Please enter the breaking change description: " manual_breaking_change_description
+                # Add to the extracted commit info
+                if [[ -n "$COMMIT_INFO" ]]; then
+                    COMMIT_INFO+=$'\n'"BREAKING CHANGE: $manual_breaking_change_description"
+                else
+                    COMMIT_INFO="BREAKING CHANGE: $manual_breaking_change_description"
+                fi
+            fi
+
+            read -p "Do you want to add a co-author? (yes/no) [no]: " add_co_author
+            if [[ "$add_co_author" == "yes" ]]; then
+                read -p "Please enter the co-author details (e.g., Name <email@example.com>): " manual_co_author
+                # Add to the extracted commit info
+                if [[ -n "$COMMIT_INFO" ]]; then
+                    COMMIT_INFO+=$'\n'"Co-authored-by: $manual_co_author"
+                else
+                    COMMIT_INFO="Co-authored-by: $manual_co_author"
+                fi
+            fi
+
             # Check PR state and merge status
             if [[ "$PR_STATE" == "closed" ]]; then
                 echo -e "${RED}This PR is closed.${NC}"
@@ -509,8 +556,6 @@ prepPrDetails() {
         fi
     done
 
-    # Extract commit info 
-    COMMIT_INFO=$(extractCommitInfo "$PR_NUMBER")
     # Construct the new title with inline replacements
     NEW_TITLE="$PARSED_DESCRIPTION"
 
