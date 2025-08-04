@@ -1,0 +1,1 @@
+Change for: feat(school): Breaking change only in commit message
