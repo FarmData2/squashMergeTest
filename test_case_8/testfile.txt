@@ -1,0 +1,2 @@
+Change for: Missing type and scope test
+Additional change for test case 8
