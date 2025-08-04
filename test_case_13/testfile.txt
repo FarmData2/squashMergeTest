@@ -1,2 +1,0 @@
-Change for: style(none): Empty title test
-Additional change for test case 13

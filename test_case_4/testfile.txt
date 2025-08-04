@@ -1,2 +1,0 @@
-Change for: perf(school): Co-author only in PR description
-Additional change for test case 4
