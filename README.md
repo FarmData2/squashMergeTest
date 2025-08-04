@@ -2,7 +2,7 @@
 
 ## Overview
 
-This repository contains automated tools for managing pull request squash merges with conventional commit formatting.
+This repository contains a simple bash script allows a simplified workflow for handling pull request squash merges that adhere to conventional commit formatting.
 
 ### Scripts
 
